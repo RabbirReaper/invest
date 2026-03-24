@@ -1,5 +1,31 @@
-# Vue 3 + Vite
+# Invest Dashboard
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+## 本地端設置教學
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+### 1. 安裝依賴套件
+
+```bash
+npm install yarn
+```
+
+### 2. 安裝專案依賴
+
+```bash
+yarn
+```
+
+### 3. 建置專案
+
+```bash
+yarn build
+```
+
+### 4. 啟動伺服器
+
+```bash
+node server
+```
+
+### 5. 開啟瀏覽器
+
+前往 [http://localhost:3000](http://localhost:3000)
