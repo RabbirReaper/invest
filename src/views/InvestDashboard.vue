@@ -90,6 +90,15 @@ function recalc() {
   document.getElementById('fcb-fcf').textContent    = fmtB(fcf0)
   document.getElementById('fcb-margin').textContent = rev > 0 ? (fcf0 / rev * 100).toFixed(1) + '%' : '-'
 
+  if (fcf0 <= 0) {
+    document.getElementById('m-iv').textContent = 'FCF \u22640\u2014DCF\u4e0d\u9069\u7528'
+    document.getElementById('m-iv').style.color = 'var(--red)'
+    document.getElementById('m-iv-cur').textContent = '\u9700\u6b63 FCF \u624d\u80fd\u4f30\u5024'
+    document.getElementById('m-target').textContent = '\u2014'
+    document.getElementById('m-upside').textContent = '\u2014'
+    return
+  }
+
   const fcfMargin = rev > 0 ? fcf0 / rev * 100 : 0
   document.getElementById('m-fcfm').textContent    = fcfMargin.toFixed(1) + '%'
   document.getElementById('m-company').textContent = name.substring(0, 10) || 'TTM'
@@ -509,6 +518,13 @@ async function autoFetch() {
       document.getElementById('inp-debt').value = (fd.totalDebt.raw / 1e8).toFixed(0)
       document.getElementById('sel-debt-u').value = '1e8'
       filled.push('負債')
+    }
+    if (ks?.beta?.raw != null && isFinite(ks.beta.raw)) {
+      const sl = document.getElementById('sl-beta')
+      const bv = Math.min(Math.max(ks.beta.raw, parseFloat(sl.min)), parseFloat(sl.max))
+      sl.value = bv.toFixed(2)
+      document.getElementById('lbl-beta').textContent = bv.toFixed(1)
+      filled.push('Beta')
     }
     showStatus('ok', `已帶入：${filled.join('、')}（數據來源：Yahoo Finance TTM）`)
     recalc()
