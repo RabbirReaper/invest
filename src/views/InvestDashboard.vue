@@ -24,8 +24,17 @@ function sync(key, val, suf, dec) {
   const map = {
     rf: 'lbl-rf', beta: 'lbl-beta', dv: 'lbl-dv', spread: 'lbl-spread', tc: 'lbl-tc',
     g1: 'lbl-g1', g2: 'lbl-g2', gp: 'lbl-gp', margin: 'lbl-margin', rsi: 'lbl-rsi', ma: 'lbl-ma',
+    fcfnorm: 'lbl-fcfnorm',
   }
   if (map[key]) document.getElementById(map[key]).textContent = parseFloat(val).toFixed(dec) + suf
+  recalc()
+}
+
+function fcfModeChange() {
+  const mode = document.getElementById('sel-fcf-mode').value
+  const isNorm = mode === 'norm'
+  document.getElementById('fcf-actual-block').style.display = isNorm ? 'none' : ''
+  document.getElementById('fcf-norm-block').style.display   = isNorm ? '' : 'none'
   recalc()
 }
 
@@ -90,7 +99,24 @@ function recalc() {
   document.getElementById('fcb-fcf').textContent    = fmtB(fcf0)
   document.getElementById('fcb-margin').textContent = rev > 0 ? (fcf0 / rev * 100).toFixed(1) + '%' : '-'
 
-  if (fcf0 <= 0) {
+  // 決定實際用於 DCF 的 FCF
+  const fcfMode = document.getElementById('sel-fcf-mode').value
+  let effectiveFcf = fcf0
+  if (fcfMode === 'norm') {
+    const normPct = n('sl-fcfnorm')
+    effectiveFcf = rev * normPct / 100
+    document.getElementById('fcb-norm-val').textContent    = fmtB(effectiveFcf)
+    document.getElementById('fcb-norm-rev').textContent    = fmtB(rev)
+    document.getElementById('lbl-fcfnorm-pct').textContent = normPct.toFixed(0) + '%'
+    document.getElementById('fcb-actual-fcf-ref').textContent = fmtB(fcf0)
+  }
+
+  if (effectiveFcf <= 0) {
+    console.log('[recalc] FCF <= 0, DCF skipped', {
+      name, price, currency: priceCur,
+      shares, rev, fcf0, ocf, capex, cash, debt,
+      rf, beta, dvPct, spread, tc, wacc,
+    })
     document.getElementById('m-iv').textContent = 'FCF \u22640\u2014DCF\u4e0d\u9069\u7528'
     document.getElementById('m-iv').style.color = 'var(--red)'
     document.getElementById('m-iv-cur').textContent = '\u9700\u6b63 FCF \u624d\u80fd\u4f30\u5024'
@@ -99,13 +125,13 @@ function recalc() {
     return
   }
 
-  const fcfMargin = rev > 0 ? fcf0 / rev * 100 : 0
-  document.getElementById('m-fcfm').textContent    = fcfMargin.toFixed(1) + '%'
+  const fcfMargin = rev > 0 ? effectiveFcf / rev * 100 : 0
+  document.getElementById('m-fcfm').textContent    = fcfMargin.toFixed(1) + '%' + (fcfMode === 'norm' ? ' (正常化)' : '')
   document.getElementById('m-company').textContent = name.substring(0, 10) || 'TTM'
   document.getElementById('m-wacc').textContent    = (wacc * 100).toFixed(2) + '%'
   document.getElementById('m-wacc-j').textContent  = wacc < 0.07 ? '估值友好' : wacc < 0.10 ? '中性' : '高壓'
 
-  const res = runDCF(fcf0, g1, g2, gp, wacc)
+  const res = runDCF(effectiveFcf, g1, g2, gp, wacc)
   if (!res) {
     ;['m-iv', 'm-target', 'm-upside'].forEach(id => { document.getElementById(id).textContent = '模型失效' })
     document.getElementById('m-iv').style.color = 'var(--red)'
@@ -118,6 +144,19 @@ function recalc() {
   const target = iv * (1 - marginPct / 100)
   const upside  = (iv - price) / price * 100
   const uTarget = (target - price) / price * 100
+
+  console.log('[recalc]', {
+    name, price, currency: priceCur,
+    shares, rev,
+    ocf, capex, fcf0, cash, debt,
+    rf, beta, dvPct, spread, tc,
+    wacc: parseFloat((wacc * 100).toFixed(2)),
+    g1, g2, gp, marginPct,
+    pv5, pv10, tvPV, total,
+    equity, iv: parseFloat(iv.toFixed(2)),
+    target: parseFloat(target.toFixed(2)),
+    upside: parseFloat(upside.toFixed(1)),
+  })
 
   document.getElementById('m-iv').textContent       = iv.toFixed(2)
   document.getElementById('m-iv').style.color       = 'var(--blue)'
@@ -312,7 +351,10 @@ function switchScenario(sc) {
     document.getElementById('stab-' + s[0]).className = 'stab ' + s + (s === sc ? ' active' : '')
   })
   document.getElementById('sens-note').textContent = SCENARIO_NOTE[sc]
-  const fcf0 = n('inp-fcf') * sv('sel-fcf-u')
+  const rawFcf = n('inp-fcf') * sv('sel-fcf-u')
+  const rev    = n('inp-rev') * sv('sel-rev-u')
+  const fcfMode = document.getElementById('sel-fcf-mode').value
+  const fcf0 = fcfMode === 'norm' ? rev * n('sl-fcfnorm') / 100 : rawFcf
   const g1 = n('sl-g1'), g2 = n('sl-g2'), gp = n('sl-gp'), marginPct = n('sl-margin')
   const shares = n('inp-shares') * sv('sel-shares-u')
   const price  = n('inp-price')
@@ -667,26 +709,51 @@ onBeforeUnmount(() => {
             </div>
           </div>
           <div class="ctrl">
-            <div class="ctrl-row"><span class="ctrl-name">營業現金流 OCF</span></div>
-            <div class="inp-row">
-              <input type="number" id="inp-ocf" value="400" step="1" @input="fcfFromComponents">
-              <select id="sel-ocf-u" @change="fcfFromComponents"><option value="1e8">億</option><option value="1e6">百萬</option></select>
+            <div class="ctrl-row"><span class="ctrl-name">FCF 模式</span></div>
+            <select id="sel-fcf-mode" class="fcf-mode-sel" @change="fcfModeChange">
+              <option value="actual">實際 FCF (OCF - CapEx)</option>
+              <option value="norm">正常化 FCF (% 營收)</option>
+            </select>
+          </div>
+
+          <div id="fcf-actual-block">
+            <div class="ctrl">
+              <div class="ctrl-row"><span class="ctrl-name">營業現金流 OCF</span></div>
+              <div class="inp-row">
+                <input type="number" id="inp-ocf" value="400" step="1" @input="fcfFromComponents">
+                <select id="sel-ocf-u" @change="fcfFromComponents"><option value="1e8">億</option><option value="1e6">百萬</option></select>
+              </div>
+            </div>
+            <div class="ctrl">
+              <div class="ctrl-row"><span class="ctrl-name">資本支出 CapEx</span></div>
+              <div class="inp-row">
+                <input type="number" id="inp-capex" value="100" step="1" @input="fcfFromComponents">
+                <select id="sel-capex-u" @change="fcfFromComponents"><option value="1e8">億</option><option value="1e6">百萬</option></select>
+              </div>
+            </div>
+            <div class="fcf-breakdown">
+              <div class="fcb-row"><span class="fcb-label">OCF</span><span class="fcb-val" id="fcb-ocf">400億</span></div>
+              <div class="fcb-row"><span class="fcb-label">− CapEx</span><span class="fcb-val bad" id="fcb-capex">−100億</span></div>
+              <div class="fcb-divider"></div>
+              <div class="fcb-row"><span class="fcb-label">= FCF (TTM)</span><span class="fcb-val good" id="fcb-fcf">300億</span></div>
+              <div class="fcb-row"><span class="fcb-label">FCF Margin</span><span class="fcb-val" id="fcb-margin">10.0%</span></div>
             </div>
           </div>
-          <div class="ctrl">
-            <div class="ctrl-row"><span class="ctrl-name">資本支出 CapEx</span></div>
-            <div class="inp-row">
-              <input type="number" id="inp-capex" value="100" step="1" @input="fcfFromComponents">
-              <select id="sel-capex-u" @change="fcfFromComponents"><option value="1e8">億</option><option value="1e6">百萬</option></select>
+
+          <div id="fcf-norm-block" style="display:none">
+            <div class="ctrl">
+              <div class="ctrl-row"><span class="ctrl-name">正常化 FCF Margin</span><span class="ctrl-val" id="lbl-fcfnorm">8%</span></div>
+              <input type="range" id="sl-fcfnorm" min="1" max="40" step="1" value="8" @input="e => sync('fcfnorm', e.target.value, '%', 0)">
+            </div>
+            <div class="fcf-breakdown">
+              <div class="fcb-row"><span class="fcb-label">TTM 營收</span><span class="fcb-val" id="fcb-norm-rev">—</span></div>
+              <div class="fcb-row"><span class="fcb-label">× Margin</span><span class="fcb-val" id="lbl-fcfnorm-pct">8%</span></div>
+              <div class="fcb-divider"></div>
+              <div class="fcb-row"><span class="fcb-label">= 正常化 FCF</span><span class="fcb-val good" id="fcb-norm-val">—</span></div>
+              <div class="fcb-row muted-note">實際 TTM FCF: <span id="fcb-actual-fcf-ref">—</span></div>
             </div>
           </div>
-          <div class="fcf-breakdown">
-            <div class="fcb-row"><span class="fcb-label">OCF</span><span class="fcb-val" id="fcb-ocf">400億</span></div>
-            <div class="fcb-row"><span class="fcb-label">− CapEx</span><span class="fcb-val bad" id="fcb-capex">−100億</span></div>
-            <div class="fcb-divider"></div>
-            <div class="fcb-row"><span class="fcb-label">= FCF (TTM)</span><span class="fcb-val good" id="fcb-fcf">300億</span></div>
-            <div class="fcb-row"><span class="fcb-label">FCF Margin</span><span class="fcb-val" id="fcb-margin">10.0%</span></div>
-          </div>
+
           <!-- hidden FCF input used by JS -->
           <div style="display:none">
             <input type="number" id="inp-fcf" value="300">
@@ -920,6 +987,8 @@ input:focus, select:focus { border-color: var(--blue); }
 .fcb-label { color: var(--muted); }
 .fcb-val { color: var(--text); }
 .fcb-divider { border-top: 0.5px solid var(--border); margin: 4px 0; }
+.fcb-row.muted-note { color: var(--muted); font-size: 9px; gap: 4px; }
+.fcf-mode-sel { width: 100%; background: var(--s2); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; font-size: 11px; margin-bottom: 6px; }
 
 .main { padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
 .card { background: var(--s1); border: 0.5px solid var(--border); border-radius: 11px; padding: 12px 14px; }
