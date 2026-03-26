@@ -2,7 +2,6 @@
 import { onMounted, onBeforeUnmount } from 'vue'
 import Chart from 'chart.js/auto'
 
-const RM = 0.09
 let waccChart = null
 let fcfChart = null
 let curScenario = 'conservative'
@@ -24,9 +23,20 @@ function sync(key, val, suf, dec) {
   const map = {
     rf: 'lbl-rf', beta: 'lbl-beta', dv: 'lbl-dv', spread: 'lbl-spread', tc: 'lbl-tc',
     g1: 'lbl-g1', g2: 'lbl-g2', gp: 'lbl-gp', margin: 'lbl-margin', rsi: 'lbl-rsi', ma: 'lbl-ma',
-    fcfnorm: 'lbl-fcfnorm',
+    fcfnorm: 'lbl-fcfnorm', rm: 'lbl-rm',
   }
   if (map[key]) document.getElementById(map[key]).textContent = parseFloat(val).toFixed(dec) + suf
+  if (key === 'rf') {
+    const rfTop = document.getElementById('inp-rf-top')
+    if (rfTop) rfTop.value = parseFloat(val).toFixed(1)
+  }
+  recalc()
+}
+
+function syncRfTop() {
+  const v = Math.min(Math.max(parseFloat(document.getElementById('inp-rf-top').value) || 3.5, 0), 10)
+  document.getElementById('sl-rf').value = v
+  document.getElementById('lbl-rf').textContent = v.toFixed(1) + '%'
   recalc()
 }
 
@@ -52,9 +62,10 @@ function fcfFromComponents() {
   recalc()
 }
 
-function calcWACC(rf, beta, dv, spread, tc) {
+function calcWACC(rf, beta, dv, spread, tc, rm) {
+  const rm_r = (rm ?? 9) / 100
   const d = dv / 100, e = 1 - d
-  const re  = rf / 100 + beta * (RM - rf / 100)
+  const re  = rf / 100 + beta * (rm_r - rf / 100)
   const rdA = (rf / 100 + spread / 100) * (1 - tc / 100)
   return { re, rdA, wacc: e * re + d * rdA, e, d }
 }
@@ -77,7 +88,7 @@ function runDCF(fcf0, g1, g2, gp, wacc) {
 
 function recalc() {
   const rf = n('sl-rf'), beta = n('sl-beta'), dvPct = n('sl-dv')
-  const spread = n('sl-spread'), tc = n('sl-tc')
+  const spread = n('sl-spread'), tc = n('sl-tc'), rm = n('sl-rm')
   const g1 = n('sl-g1'), g2 = n('sl-g2'), gp = n('sl-gp'), marginPct = n('sl-margin')
   const rsi = n('sl-rsi'), ma = n('sl-ma'), price = n('inp-price')
   const priceCur = document.getElementById('sel-price-cur').value
@@ -89,7 +100,7 @@ function recalc() {
   const name   = document.getElementById('inp-name').value
                || document.getElementById('inp-ticker').value || '-'
 
-  const { re, rdA, wacc } = calcWACC(rf, beta, dvPct, spread, tc)
+  const { re, rdA, wacc } = calcWACC(rf, beta, dvPct, spread, tc, rm)
 
   // FCF breakdown
   const ocf   = n('inp-ocf')   * sv('sel-ocf-u')
@@ -213,7 +224,7 @@ function recalc() {
   utEl.className   = 'right ' + (uTarget > 0 ? 'good' : 'bad')
 
   updateConc(wacc, iv, target, price, rsi, ma, dvPct, gp, wacc * 100)
-  updateWACCChart(beta, dvPct, spread, tc, rf)
+  updateWACCChart(beta, dvPct, spread, tc, rf, rm)
   updateFCFChart(fcfs, pvs)
   updateSens(fcf0, g1, g2, gp, shares, marginPct, price, wacc, cash, debt, curScenario)
 }
@@ -284,10 +295,10 @@ function updateConc(wacc, iv, target, price, rsi, ma, dv, gp, wPct) {
   }
 }
 
-function updateWACCChart(beta, dv, spread, tc, rf) {
+function updateWACCChart(beta, dv, spread, tc, rf, rm) {
   const labels = [], wd = [], red = [], rdd = []
   for (let r = 0; r <= 10; r += 0.5) {
-    const { re, rdA, wacc } = calcWACC(r, beta, dv, spread, tc)
+    const { re, rdA, wacc } = calcWACC(r, beta, dv, spread, tc, rm)
     labels.push(r.toFixed(1) + '%')
     wd.push(+(wacc * 100).toFixed(3))
     red.push(+(re * 100).toFixed(3))
@@ -360,7 +371,7 @@ function switchScenario(sc) {
   const price  = n('inp-price')
   const cash   = n('inp-cash')   * sv('sel-cash-u')
   const debt   = n('inp-debt')   * sv('sel-debt-u')
-  const wacc   = calcWACC(n('sl-rf'), n('sl-beta'), n('sl-dv'), n('sl-spread'), n('sl-tc')).wacc
+  const wacc   = calcWACC(n('sl-rf'), n('sl-beta'), n('sl-dv'), n('sl-spread'), n('sl-tc'), n('sl-rm')).wacc
   updateSens(fcf0, g1, g2, gp, shares, marginPct, price, wacc, cash, debt, sc)
 }
 
@@ -496,7 +507,11 @@ async function autoFetch() {
       const r = await fetch(proxy.url, { headers: { Accept: 'application/json' } })
       if (!r.ok) continue
       const j = proxy.parse(await r.json())
-      if (j?.quoteSummary?.result?.[0]) { data = j.quoteSummary.result[0]; break }
+      if (j?.quoteSummary?.result?.[0]) {
+        console.log('[Yahoo Raw JSON]', JSON.stringify(j, null, 2))
+        data = j.quoteSummary.result[0]
+        break
+      }
     } catch (e) {
       console.log('proxy error:', e.message)
     }
@@ -540,16 +555,10 @@ async function autoFetch() {
       filled.push('OCF')
     }
     if (fd?.freeCashflow?.raw) {
-      const fcf   = fd.freeCashflow.raw
-      const ocfVal = n('inp-ocf') * sv('sel-ocf-u')
+      const fcf = fd.freeCashflow.raw
       document.getElementById('inp-fcf').value = (fcf / 1e8).toFixed(0)
       document.getElementById('sel-fcf-u').value = '1e8'
-      const capex = ocfVal - fcf
-      if (capex >= 0) {
-        document.getElementById('inp-capex').value = (capex / 1e8).toFixed(0)
-        document.getElementById('sel-capex-u').value = '1e8'
-      }
-      filled.push('FCF/CapEx')
+      filled.push('FCF')
     }
     if (fd?.totalCash?.raw) {
       document.getElementById('inp-cash').value = (fd.totalCash.raw / 1e8).toFixed(0)
@@ -568,6 +577,63 @@ async function autoFetch() {
       document.getElementById('lbl-beta').textContent = bv.toFixed(1)
       filled.push('Beta')
     }
+
+    // cashflowStatementHistory - CapEx 直接取值（修正間接算法 bug）、OCF 加權、折舊、營運資金變動
+    const cfs = data.cashflowStatementHistory?.cashflowStatements
+    if (cfs && cfs.length > 0) {
+      const capexRaw = cfs[0].capitalExpenditures?.raw
+      if (capexRaw != null) {
+        const capexAbs = Math.abs(capexRaw)
+        document.getElementById('inp-capex').value = (capexAbs / 1e8).toFixed(0)
+        document.getElementById('sel-capex-u').value = '1e8'
+        document.getElementById('ap-capex-api').textContent = fmtB(capexAbs)
+        filled.push('CapEx')
+      }
+      const weights = [4, 3, 2, 1].slice(0, cfs.length)
+      const wSum = weights.reduce((a, b) => a + b, 0)
+      const wOcf = cfs.reduce((sum, s, i) => {
+        const v = s.totalCashFromOperatingActivities?.raw || 0
+        return sum + v * (weights[i] || 1)
+      }, 0) / wSum
+      document.getElementById('ap-ocf-avg').textContent = fmtB(wOcf)
+      const depr = cfs[0].depreciation?.raw
+      if (depr != null) document.getElementById('ap-depr').textContent = fmtB(Math.abs(depr))
+      const wcc = cfs[0].changeInWorkingCapital?.raw
+      if (wcc != null) document.getElementById('ap-wcc').textContent = (wcc >= 0 ? '+' : '') + fmtB(wcc)
+    }
+
+    // incomeStatementHistory - 利息費用、債務成本 Rd
+    const isStmts = data.incomeStatementHistory?.incomeStatementHistory
+    if (isStmts && isStmts.length > 0) {
+      const interest = isStmts[0].interestExpense?.raw
+      if (interest != null) {
+        const iAbs = Math.abs(interest)
+        document.getElementById('ap-interest').textContent = fmtB(iAbs)
+        const totalDebtRaw = fd?.totalDebt?.raw
+        if (totalDebtRaw && totalDebtRaw > 0) {
+          document.getElementById('ap-rd').textContent = (iAbs / totalDebtRaw * 100).toFixed(2) + '%'
+        }
+      }
+    }
+
+    // API 顯示欄位
+    if (fd?.netIncomeToCommon?.raw != null)
+      document.getElementById('ap-netincome').textContent = fmtB(fd.netIncomeToCommon.raw)
+    if (ks?.enterpriseToEbitda?.raw != null)
+      document.getElementById('ap-ev-ebitda').textContent = ks.enterpriseToEbitda.raw.toFixed(1) + 'x'
+    if (ks?.forwardEps?.raw != null)
+      document.getElementById('ap-feps').textContent = ks.forwardEps.raw.toFixed(2)
+    if (ks?.heldPercentInstitutions?.raw != null)
+      document.getElementById('ap-inst').textContent = (ks.heldPercentInstitutions.raw * 100).toFixed(1) + '%'
+    const cashRaw = fd?.totalCash?.raw || 0
+    const debtRaw = fd?.totalDebt?.raw || 0
+    if (cashRaw || debtRaw) {
+      const netCash = cashRaw - debtRaw
+      const el = document.getElementById('ap-net-cash')
+      el.textContent = (netCash >= 0 ? '+' : '') + fmtB(netCash)
+      el.style.color = netCash >= 0 ? 'var(--teal)' : 'var(--red)'
+    }
+
     showStatus('ok', `已帶入：${filled.join('、')}（數據來源：Yahoo Finance TTM）`)
     recalc()
   } catch (e) {
@@ -628,6 +694,13 @@ onBeforeUnmount(() => {
     <div class="topbar">
       <h1>投資分析台</h1>
       <span class="topbar-sub">DCF · WACC · 周期 · TradingView</span>
+      <div class="rf-sep"></div>
+      <div class="rf-quick">
+        <span class="rf-lbl">無風險利率 Rf</span>
+        <input type="number" id="inp-rf-top" value="3.5" step="0.1" min="0" max="10" @input="syncRfTop">
+        <span class="rf-unit">%</span>
+        <span class="rf-hint">10Y公債｜每日更新｜決定所有資產走向</span>
+      </div>
       <div style="flex:1"></div>
       <div id="phase-pill" class="tag-pill" style="background:rgba(224,92,92,0.15);color:var(--red)">滯脹期</div>
     </div>
@@ -794,8 +867,12 @@ onBeforeUnmount(() => {
 
           <div class="slbl">WACC 參數</div>
           <div class="ctrl">
-            <div class="ctrl-row"><span class="ctrl-name">基準利率 Rf</span><span class="ctrl-val" id="lbl-rf">3.5%</span></div>
+            <div class="ctrl-row"><span class="ctrl-name">無風險利率 Rf</span><span class="ctrl-val" id="lbl-rf">3.5%</span></div>
             <input type="range" id="sl-rf" min="0" max="10" step="0.5" value="3.5" @input="e => sync('rf', e.target.value, '%', 1)">
+          </div>
+          <div class="ctrl">
+            <div class="ctrl-row"><span class="ctrl-name">大盤預期報酬 Rm</span><span class="ctrl-val" id="lbl-rm">9.0%</span></div>
+            <input type="range" id="sl-rm" min="5" max="15" step="0.5" value="9" @input="e => sync('rm', e.target.value, '%', 1)">
           </div>
           <div class="ctrl">
             <div class="ctrl-row"><span class="ctrl-name">Beta β</span><span class="ctrl-val" id="lbl-beta">1.2</span></div>
@@ -837,6 +914,57 @@ onBeforeUnmount(() => {
           <div class="mc"><div class="mc-lbl">買入目標價</div><div class="mc-val" id="m-target" style="color:var(--teal)">—</div><div class="mc-sub" id="m-target-sub">含安全邊際</div></div>
           <div class="mc"><div class="mc-lbl">上漲空間</div><div class="mc-val" id="m-upside">—</div><div class="mc-sub">vs 當前股價</div></div>
           <div class="mc"><div class="mc-lbl">FCF Margin</div><div class="mc-val" id="m-fcfm" style="color:var(--amber)">—</div><div class="mc-sub" id="m-company">TTM</div></div>
+        </div>
+
+        <!-- API 財務速覽 -->
+        <div class="card">
+          <div class="ctitle">財務速覽（API 自動帶入）</div>
+          <div class="api-grid">
+            <div class="api-item">
+              <span class="api-lbl">歸屬母公司淨利</span>
+              <span class="api-val" id="ap-netincome">—</span>
+            </div>
+            <div class="api-item">
+              <span class="api-lbl">EV/EBITDA 產現能力</span>
+              <span class="api-val" id="ap-ev-ebitda">—</span>
+            </div>
+            <div class="api-item">
+              <span class="api-lbl">Forward EPS</span>
+              <span class="api-val" id="ap-feps">—</span>
+            </div>
+            <div class="api-item">
+              <span class="api-lbl">機構持股比例</span>
+              <span class="api-val" id="ap-inst">—</span>
+            </div>
+            <div class="api-item">
+              <span class="api-lbl">淨現金（Cash − Debt）</span>
+              <span class="api-val" id="ap-net-cash">—</span>
+            </div>
+            <div class="api-item">
+              <span class="api-lbl">OCF 年加權平均</span>
+              <span class="api-val" id="ap-ocf-avg">—</span>
+            </div>
+            <div class="api-item">
+              <span class="api-lbl">折舊費用（維護型支出）</span>
+              <span class="api-val" id="ap-depr">—</span>
+            </div>
+            <div class="api-item">
+              <span class="api-lbl">營運資金變動</span>
+              <span class="api-val" id="ap-wcc">—</span>
+            </div>
+            <div class="api-item">
+              <span class="api-lbl">資本支出 CapEx</span>
+              <span class="api-val" id="ap-capex-api">—</span>
+            </div>
+            <div class="api-item">
+              <span class="api-lbl">利息費用</span>
+              <span class="api-val" id="ap-interest">—</span>
+            </div>
+            <div class="api-item">
+              <span class="api-lbl">債務成本 Rd（稅前）</span>
+              <span class="api-val" id="ap-rd">—</span>
+            </div>
+          </div>
         </div>
 
         <!-- DCF Table -->
@@ -943,6 +1071,16 @@ body { background: var(--bg); color: var(--text); font-family: 'Noto Sans TC', s
 .topbar { display: flex; align-items: center; gap: 12px; padding: 10px 20px; border-bottom: 0.5px solid var(--border); background: var(--s1); flex-wrap: wrap; flex-shrink: 0; }
 .topbar h1 { font-size: 14px; font-weight: 500; }
 .topbar-sub { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; }
+.rf-sep { width: 0.5px; height: 18px; background: var(--border2); }
+.rf-quick { display: flex; align-items: center; gap: 5px; }
+.rf-lbl { font-size: 10px; color: var(--amber); font-family: 'DM Mono', monospace; font-weight: 500; white-space: nowrap; }
+.rf-quick input { width: 58px; padding: 3px 6px; font-size: 12px; }
+.rf-unit { font-size: 11px; color: var(--muted2); font-family: 'DM Mono', monospace; }
+.rf-hint { font-size: 9px; color: var(--muted); font-family: 'DM Mono', monospace; white-space: nowrap; }
+.api-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
+.api-item { background: var(--s2); border-radius: 7px; padding: 8px 10px; }
+.api-lbl { display: block; font-size: 9px; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.api-val { display: block; font-size: 15px; font-weight: 500; font-family: 'DM Mono', monospace; color: var(--text); }
 .phase-row { display: flex; gap: 4px; padding: 8px 20px; background: var(--s1); border-bottom: 0.5px solid var(--border); flex-wrap: wrap; align-items: center; flex-shrink: 0; }
 .phase-lbl { font-size: 9px; color: var(--muted); font-family: 'DM Mono', monospace; letter-spacing: 1px; margin-right: 4px; }
 .pbtn { font-size: 10px; font-family: 'DM Mono', monospace; padding: 3px 12px; border-radius: 20px; border: 0.5px solid var(--border2); background: transparent; color: var(--muted2); cursor: pointer; transition: all .15s; }
@@ -1060,5 +1198,7 @@ input:focus, select:focus { border-color: var(--blue); }
   .left-panel { overflow: visible; }
   .mrow { grid-template-columns: repeat(3, 1fr); }
   .two, .three { grid-template-columns: 1fr; }
+  .api-grid { grid-template-columns: repeat(2, 1fr); }
+  .rf-hint { display: none; }
 }
 </style>

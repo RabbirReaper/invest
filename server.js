@@ -74,7 +74,7 @@ app.get('/api/yahoo/:ticker', async (req, res) => {
 
     const makeUrl = (crumb) =>
       `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}` +
-      `?modules=price,financialData,defaultKeyStatistics&crumb=${encodeURIComponent(crumb)}`
+      `?modules=price,financialData,defaultKeyStatistics,cashflowStatementHistory,incomeStatementHistory&crumb=${encodeURIComponent(crumb)}`
 
     let result = await httpsGet(makeUrl(session.crumb), {
       'User-Agent': UA,
