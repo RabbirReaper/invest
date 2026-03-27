@@ -120,14 +120,17 @@ const autoFetch        = inject('autoFetch')
     <div class="ctrl">
       <div class="ctrl-row"><span class="ctrl-name">Y1–5 成長率 <span class="ctrl-abbr">g1</span></span><span class="ctrl-val" id="lbl-g1">12%</span></div>
       <input type="range" id="sl-g1" min="-10" max="50" step="1" value="12" @input="e => sync('g1', e.target.value, '%', 0)">
+      <div class="mc-formula">= FCF CAGR (歷史) 或 Revenue Growth (YoY)</div>
     </div>
     <div class="ctrl">
       <div class="ctrl-row"><span class="ctrl-name">Y6–10 成長率 <span class="ctrl-abbr">g2</span></span><span class="ctrl-val" id="lbl-g2">8%</span></div>
       <input type="range" id="sl-g2" min="-10" max="30" step="1" value="8" @input="e => sync('g2', e.target.value, '%', 0)">
+      <div class="mc-formula">= g1 × 0.6（長期趨緩，下限 2%）</div>
     </div>
     <div class="ctrl">
       <div class="ctrl-row"><span class="ctrl-name">永久成長率 <span class="ctrl-abbr">g∞ (Terminal Growth)</span></span><span class="ctrl-val" id="lbl-gp">3%</span></div>
       <input type="range" id="sl-gp" min="0" max="5" step="0.5" value="3" @input="e => sync('gp', e.target.value, '%', 1)">
+      <div class="mc-formula">= TV = FCF₁₀ × (1+g∞) / (WACC − g∞)</div>
     </div>
     <div class="ctrl">
       <div class="ctrl-row"><span class="ctrl-name">安全邊際 <span class="ctrl-abbr">MOS (Margin of Safety)</span></span><span class="ctrl-val" id="lbl-margin">25%</span></div>
