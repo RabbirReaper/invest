@@ -143,6 +143,68 @@ app.get('/api/yahoo/:ticker', async (req, res) => {
   }
 })
 
+app.get('/api/market-params', async (req, res) => {
+  try {
+    let session = await getYahooSession()
+
+    const makeSummaryUrl = (ticker, crumb) =>
+      `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}` +
+      `?modules=price&crumb=${encodeURIComponent(crumb)}`
+
+    const makeChartUrl = (crumb) =>
+      `https://query1.finance.yahoo.com/v8/finance/chart/%5ESP500TR` +
+      `?interval=1mo&range=5y&crumb=${encodeURIComponent(crumb)}`
+
+    const hdrs = { 'User-Agent': UA, 'Accept': 'application/json', 'Cookie': session.cookie }
+
+    let [tnxR, sp5R, crdR] = await Promise.allSettled([
+      httpsGet(makeSummaryUrl('%5ETNX', session.crumb), hdrs),
+      httpsGet(makeChartUrl(session.crumb), hdrs),
+      httpsGet(makeSummaryUrl('BAMLC0A0CMEY', session.crumb), hdrs),
+    ])
+
+    const has401 = [tnxR, sp5R, crdR].some(r =>
+      r.status === 'fulfilled' && r.value.status === 401
+    )
+    if (has401) {
+      session = await refreshYahooSession()
+      const hdrs2 = { 'User-Agent': UA, 'Accept': 'application/json', 'Cookie': session.cookie };
+      [tnxR, sp5R, crdR] = await Promise.allSettled([
+        httpsGet(makeSummaryUrl('%5ETNX', session.crumb), hdrs2),
+        httpsGet(makeChartUrl(session.crumb), hdrs2),
+        httpsGet(makeSummaryUrl('BAMLC0A0CMEY', session.crumb), hdrs2),
+      ])
+    }
+
+    let rf = null
+    if (tnxR.status === 'fulfilled' && tnxR.value.status === 200) {
+      try { rf = JSON.parse(tnxR.value.body)?.quoteSummary?.result?.[0]?.price?.regularMarketPrice?.raw ?? null } catch (_) {}
+    }
+
+    let rm = null
+    if (sp5R.status === 'fulfilled' && sp5R.value.status === 200) {
+      try {
+        const closes = JSON.parse(sp5R.value.body)?.chart?.result?.[0]?.indicators?.adjclose?.[0]?.adjclose
+        if (closes && closes.length >= 12) {
+          const first = closes[0], last = closes[closes.length - 1]
+          if (first > 0 && last > 0)
+            rm = (Math.pow(last / first, 1 / (closes.length / 12)) - 1) * 100
+        }
+      } catch (_) {}
+    }
+
+    let spread = null
+    if (crdR.status === 'fulfilled' && crdR.value.status === 200) {
+      try { spread = JSON.parse(crdR.value.body)?.quoteSummary?.result?.[0]?.price?.regularMarketPrice?.raw ?? null } catch (_) {}
+    }
+
+    console.log('[market-params]', { rf, rm, spread })
+    res.json({ rf, rm, spread })
+  } catch (e) {
+    res.status(502).json({ error: e.message })
+  }
+})
+
 // Static files
 app.use(express.static(path.resolve(__dirname, 'dist')))
 

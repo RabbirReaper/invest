@@ -24,6 +24,17 @@ const fcfChartRef  = ref(null)
 function n(id) { return parseFloat(document.getElementById(id).value) || 0 }
 function sv(id) { return parseFloat(document.getElementById(id).value) || 1 }
 
+function setSlider(slId, rawVal, lblId, suffix, dec) {
+  const sl = document.getElementById(slId)
+  if (!sl || rawVal == null || !isFinite(rawVal)) return false
+  const lo = parseFloat(sl.min), hi = parseFloat(sl.max), step = parseFloat(sl.step)
+  const snapped = Math.round((Math.min(Math.max(rawVal, lo), hi) - lo) / step) * step + lo
+  sl.value = snapped.toFixed(dec)
+  const lbl = document.getElementById(lblId)
+  if (lbl) lbl.textContent = snapped.toFixed(dec) + suffix
+  return true
+}
+
 function sync(key, val, suf, dec) {
   const map = {
     rf: 'lbl-rf', beta: 'lbl-beta', dv: 'lbl-dv', spread: 'lbl-spread', tc: 'lbl-tc',
@@ -374,24 +385,18 @@ async function autoFetch() {
   showStatus('loading', `正在取得 ${ticker} 資料...`)
   document.getElementById('btn-fetch').textContent = '載入中'
 
-  const proxies = [
-    { url: `/api/yahoo/${ticker}`, parse: j => j },
-  ]
-
   let data = null
-  for (const proxy of proxies) {
-    try {
-      const r = await fetch(proxy.url, { headers: { Accept: 'application/json' } })
-      if (!r.ok) continue
-      const j = proxy.parse(await r.json())
-      if (j?.quoteSummary?.result?.[0]) {
-        console.log('[Yahoo Raw JSON]', JSON.stringify(j, null, 2))
-        data = j.quoteSummary.result[0]
-        break
-      }
-    } catch (e) {
-      console.log('proxy error:', e.message)
-    }
+  const [stockSettled, marketSettled] = await Promise.allSettled([
+    fetch(`/api/yahoo/${ticker}`, { headers: { Accept: 'application/json' } })
+      .then(r => r.ok ? r.json() : null).catch(() => null),
+    fetch('/api/market-params', { headers: { Accept: 'application/json' } })
+      .then(r => r.ok ? r.json() : null).catch(() => null),
+  ])
+  const rawStock = stockSettled.status === 'fulfilled' ? stockSettled.value : null
+  const marketParams = marketSettled.status === 'fulfilled' ? marketSettled.value : null
+  if (rawStock?.quoteSummary?.result?.[0]) {
+    console.log('[Yahoo Raw JSON]', JSON.stringify(rawStock, null, 2))
+    data = rawStock.quoteSummary.result[0]
   }
 
   document.getElementById('btn-fetch').textContent = '⬇ 帶入'
@@ -454,6 +459,13 @@ async function autoFetch() {
       sl.value = bv.toFixed(2)
       document.getElementById('lbl-beta').textContent = bv.toFixed(1)
       filled.push('Beta')
+    }
+
+    // D/V 負債比
+    const marketCapRaw = pr?.marketCap?.raw
+    if (fd?.totalDebt?.raw != null && marketCapRaw != null && marketCapRaw > 0) {
+      const dvRaw = fd.totalDebt.raw / (fd.totalDebt.raw + marketCapRaw) * 100
+      if (setSlider('sl-dv', dvRaw, 'lbl-dv', '%', 0)) filled.push('D/V')
     }
 
     // fundamentalsTimeSeries helper - 取最新一年的值
@@ -524,6 +536,15 @@ async function autoFetch() {
       }
     }
 
+    // Tc 企業稅率
+    if (isStmts && isStmts.length > 0) {
+      const taxExp = isStmts[0]?.incomeTaxExpense?.raw
+      const pretax = isStmts[0]?.pretaxIncome?.raw
+      if (taxExp != null && pretax != null && pretax > 0) {
+        if (setSlider('sl-tc', taxExp / pretax * 100, 'lbl-tc', '%', 0)) filled.push('Tc')
+      }
+    }
+
     // API 顯示欄位
     const netIncomeRaw = ks?.netIncomeToCommon?.raw ?? fd?.netIncomeToCommon?.raw
     if (netIncomeRaw != null)
@@ -541,6 +562,19 @@ async function autoFetch() {
       const el = document.getElementById('ap-net-cash')
       el.textContent = (netCash >= 0 ? '+' : '') + fmtB(netCash)
       el.style.color = netCash >= 0 ? 'var(--teal)' : 'var(--red)'
+    }
+
+    // Rf、Rm、信用利差 — 市場參數
+    if (marketParams) {
+      if (marketParams.rf != null && isFinite(marketParams.rf)) {
+        if (setSlider('sl-rf', marketParams.rf, 'lbl-rf', '%', 1)) {
+          const rfTop = document.getElementById('inp-rf-top')
+          if (rfTop) rfTop.value = parseFloat(document.getElementById('sl-rf').value).toFixed(1)
+          filled.push('Rf')
+        }
+      }
+      if (setSlider('sl-rm', marketParams.rm, 'lbl-rm', '%', 1)) filled.push('Rm')
+      if (setSlider('sl-spread', marketParams.spread, 'lbl-spread', '%', 1)) filled.push('信用利差')
     }
 
     showStatus('ok', `已帶入：${filled.join('、')}（數據來源：Yahoo Finance TTM）`)
