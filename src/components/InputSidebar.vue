@@ -160,15 +160,6 @@ const autoFetch        = inject('autoFetch')
       <input type="range" id="sl-tc" min="10" max="35" step="1" value="21" @input="e => sync('tc', e.target.value, '%', 0)">
     </div>
 
-    <div class="slbl">技術面確認</div>
-    <div class="ctrl">
-      <div class="ctrl-row"><span class="ctrl-name">RSI（14日）</span><span class="ctrl-val" id="lbl-rsi">35</span></div>
-      <input type="range" id="sl-rsi" min="0" max="100" step="1" value="35" @input="e => sync('rsi', e.target.value, '', 0)">
-    </div>
-    <div class="ctrl">
-      <div class="ctrl-row"><span class="ctrl-name">股價 vs 月線</span><span class="ctrl-val" id="lbl-ma">-5%</span></div>
-      <input type="range" id="sl-ma" min="-30" max="30" step="1" value="-5" @input="e => sync('ma', e.target.value, '%', 0)">
-    </div>
 
   </div>
 </template>

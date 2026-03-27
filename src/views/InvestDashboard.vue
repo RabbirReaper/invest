@@ -27,7 +27,7 @@ function sv(id) { return parseFloat(document.getElementById(id).value) || 1 }
 function sync(key, val, suf, dec) {
   const map = {
     rf: 'lbl-rf', beta: 'lbl-beta', dv: 'lbl-dv', spread: 'lbl-spread', tc: 'lbl-tc',
-    g1: 'lbl-g1', g2: 'lbl-g2', gp: 'lbl-gp', margin: 'lbl-margin', rsi: 'lbl-rsi', ma: 'lbl-ma',
+    g1: 'lbl-g1', g2: 'lbl-g2', gp: 'lbl-gp', margin: 'lbl-margin',
     fcfnorm: 'lbl-fcfnorm', rm: 'lbl-rm',
   }
   if (map[key]) document.getElementById(map[key]).textContent = parseFloat(val).toFixed(dec) + suf
@@ -71,7 +71,7 @@ function recalc() {
   const rf = n('sl-rf'), beta = n('sl-beta'), dvPct = n('sl-dv')
   const spread = n('sl-spread'), tc = n('sl-tc'), rm = n('sl-rm')
   const g1 = n('sl-g1'), g2 = n('sl-g2'), gp = n('sl-gp'), marginPct = n('sl-margin')
-  const rsi = n('sl-rsi'), ma = n('sl-ma'), price = n('inp-price')
+  const price = n('inp-price')
   const priceCur = document.getElementById('sel-price-cur').value
   const shares = n('inp-shares') * sv('sel-shares-u')
   const rev    = n('inp-rev')    * sv('sel-rev-u')
@@ -204,13 +204,13 @@ function recalc() {
   utEl.textContent = (uTarget >= 0 ? '+' : '') + uTarget.toFixed(1) + '%'
   utEl.className   = 'right ' + (uTarget > 0 ? 'good' : 'bad')
 
-  updateConc(wacc, iv, target, price, rsi, ma, dvPct, gp, wacc * 100)
+  updateConc(wacc, iv, target, price, dvPct, gp, wacc * 100)
   waccChartRef.value?.update(beta, dvPct, spread, tc, rf, rm)
   fcfChartRef.value?.update(fcfs, pvs)
   updateSens(fcf0, g1, g2, gp, shares, marginPct, price, wacc, cash, debt, curScenario)
 }
 
-function updateConc(wacc, iv, target, price, rsi, ma, dv, gp, wPct) {
+function updateConc(wacc, iv, target, price, dv, gp, wPct) {
   const up = (target - price) / price * 100
   const we = document.getElementById('conc-wacc')
   if (wacc < 0.07) {
@@ -234,41 +234,22 @@ function updateConc(wacc, iv, target, price, rsi, ma, dv, gp, wPct) {
   } else if (up > 0) {
     de.className = 'conc neutral'
     document.getElementById('conc-dcf-t').textContent = 'DCF - 合理偏低'
-    document.getElementById('conc-dcf-b').textContent = `上漲空間 ${up.toFixed(1)}%，安全邊際尚可，等技術面確認後分批進場。`
+    document.getElementById('conc-dcf-b').textContent = `上漲空間 ${up.toFixed(1)}%，安全邊際尚可，可分批進場。`
   } else {
     de.className = 'conc bear'
     document.getElementById('conc-dcf-t').textContent = 'DCF - 高估'
     document.getElementById('conc-dcf-b').textContent = `股價 ${price.toFixed(2)} 高於目標 ${target.toFixed(2)}，下跌風險 ${Math.abs(up).toFixed(1)}%，等回調至安全邊際。`
   }
-  const te = document.getElementById('conc-tech')
-  let ts = 0
-  if (rsi < 30) ts += 2; else if (rsi < 50) ts += 1
-  if (ma < -3)  ts += 2; else if (ma < 0)   ts += 1
-  if (ts >= 3) {
-    te.className = 'conc bull'
-    document.getElementById('conc-tech-t').textContent = '技術面 - 低位佈局'
-    document.getElementById('conc-tech-b').textContent = `RSI ${rsi}${rsi < 30 ? ' (超賣)' : ''}，低月線 ${Math.abs(ma)}%。等 RSI 底背離 + 帶量突破月線確認。`
-  } else if (ts >= 1) {
-    te.className = 'conc neutral'
-    document.getElementById('conc-tech-t').textContent = '技術面 - 中性等待'
-    document.getElementById('conc-tech-b').textContent = `RSI ${rsi}，月線偏離 ${ma > 0 ? '+' : ''}${ma}%，尚無明確底部信號。`
-  } else {
-    te.className = 'conc bear'
-    document.getElementById('conc-tech-t').textContent = '技術面 - 追漲風險'
-    document.getElementById('conc-tech-b').textContent = `RSI ${rsi}${rsi > 70 ? ' (超買)' : ''}，高於月線 ${ma}%，注意短期修正風險。`
-  }
   const sigs = []
-  if (rsi < 30) sigs.push({ t: 'RSI超賣', c: 'bull' }); else if (rsi > 70) sigs.push({ t: 'RSI超買', c: 'bear' })
-  if (ma < -5)  sigs.push({ t: '低於月線', c: 'bull' }); else if (ma > 5) sigs.push({ t: '高月線', c: 'neutral' })
   if (wacc < 0.08) sigs.push({ t: 'WACC低', c: 'bull' }); else if (wacc > 0.11) sigs.push({ t: 'WACC高', c: 'bear' })
   if (up > 30) sigs.push({ t: '大幅低估', c: 'bull' }); else if (up < 0) sigs.push({ t: '估值偏高', c: 'bear' })
   document.getElementById('sig-row').innerHTML = sigs.map(s => `<span class="sig sig-${s.c}">${s.t}</span>`).join('')
   const av = document.getElementById('action-val')
-  if (up > 20 && ts >= 2 && wacc < 0.11) {
-    av.textContent = '條件成熟 - 分批建倉，等帶量突破月線確認'
+  if (up > 20 && wacc < 0.11) {
+    av.textContent = '條件成熟 - 分批建倉'
     av.style.color = 'var(--teal)'
   } else if (up < 0 || wacc > 0.12) {
-    av.textContent = '暫緩進場 - 等估值或技術面改善'
+    av.textContent = '暫緩進場 - 等估值改善'
     av.style.color = 'var(--red)'
   } else {
     av.textContent = '持續觀察 - 設定價格警報，等信號收斂'
