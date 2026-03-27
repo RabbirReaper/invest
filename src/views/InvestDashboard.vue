@@ -356,7 +356,7 @@ function clearPreviousData() {
     const el = document.getElementById(id)
     if (el) el.value = ''
   }
-  const apIds = ['ap-capex-api', 'ap-ocf-avg', 'ap-depr', 'ap-wcc', 'ap-interest', 'ap-rd', 'ap-netincome', 'ap-ev-ebitda', 'ap-feps', 'ap-inst', 'ap-net-cash']
+  const apIds = ['ap-fcf', 'ap-capex-api', 'ap-ocf-avg', 'ap-depr', 'ap-wcc', 'ap-interest', 'ap-rd', 'ap-netincome', 'ap-ev-ebitda', 'ap-feps', 'ap-inst', 'ap-net-cash']
   for (const id of apIds) {
     const el = document.getElementById(id)
     if (el) { el.textContent = '—'; el.style.color = '' }
@@ -435,6 +435,7 @@ async function autoFetch() {
       const fcf = fd.freeCashflow.raw
       document.getElementById('inp-fcf').value = (fcf / 1e8).toFixed(0)
       document.getElementById('sel-fcf-u').value = '1e8'
+      document.getElementById('ap-fcf').textContent = fmtB(fcf)
       filled.push('FCF')
     }
     if (fd?.totalCash?.raw) {

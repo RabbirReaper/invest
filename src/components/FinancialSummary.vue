@@ -35,6 +35,10 @@
         <span class="api-val" id="ap-wcc">—</span>
       </div>
       <div class="api-item">
+        <span class="api-lbl">自由現金流 FCF</span>
+        <span class="api-val" id="ap-fcf">—</span>
+      </div>
+      <div class="api-item">
         <span class="api-lbl">資本支出 CapEx</span>
         <span class="api-val" id="ap-capex-api">—</span>
       </div>
