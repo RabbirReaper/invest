@@ -479,6 +479,20 @@ async function autoFetch() {
       return arr[arr.length - 1]?.reportedValue?.raw ?? null
     }
 
+    // fundamentalsTimeSeries helper - 取所有年份值（升冪排列）
+    function ftsAllVals(fts, fieldName) {
+      const entries = fts?.timeseries?.result
+      if (!entries) return []
+      const entry = entries.find(e => fieldName in e)
+      if (!entry) return []
+      const arr = entry[fieldName]
+      if (!arr || arr.length === 0) return []
+      return arr
+        .filter(x => x?.reportedValue?.raw != null)
+        .sort((a, b) => (a.asOfDate || '').localeCompare(b.asOfDate || ''))
+        .map(x => x.reportedValue.raw)
+    }
+
     const fts = data.fundamentalsTimeSeries
 
     // cashflowStatementHistory - 嘗試舊格式，若空則 fallback 到 fundamentalsTimeSeries
@@ -575,6 +589,27 @@ async function autoFetch() {
       }
       if (setSlider('sl-rm', marketParams.rm, 'lbl-rm', '%', 1)) filled.push('Rm')
       if (setSlider('sl-spread', marketParams.spread, 'lbl-spread', '%', 1)) filled.push('信用利差')
+    }
+
+    // g1 — 基於歷史 FCF CAGR（annualFreeCashFlow），不足則 fallback 到 revenueGrowth
+    const fcfHistory = ftsAllVals(fts, 'annualFreeCashFlow')
+    let g1Auto = null
+    if (fcfHistory.length >= 2) {
+      const first = fcfHistory[0], last = fcfHistory[fcfHistory.length - 1]
+      const years = fcfHistory.length - 1
+      if (first > 0 && last > 0) {
+        g1Auto = (Math.pow(last / first, 1 / years) - 1) * 100
+      }
+    }
+    if (g1Auto == null && fd?.revenueGrowth?.raw != null) {
+      g1Auto = fd.revenueGrowth.raw * 100
+    }
+    if (g1Auto != null && isFinite(g1Auto)) {
+      const g1Clamped = Math.min(Math.max(g1Auto, -10), 50)
+      if (setSlider('sl-g1', g1Clamped, 'lbl-g1', '%', 0)) filled.push('g1')
+      // g2 設為 g1 的 60%，下限 2%，以反映長期成長趨緩
+      const g2Auto = Math.max(g1Clamped * 0.6, 2)
+      if (setSlider('sl-g2', g2Auto, 'lbl-g2', '%', 0)) filled.push('g2')
     }
 
     showStatus('ok', `已帶入：${filled.join('、')}（數據來源：Yahoo Finance TTM）`)
