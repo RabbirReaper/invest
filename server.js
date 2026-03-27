@@ -76,6 +76,20 @@ app.get('/api/yahoo/:ticker', async (req, res) => {
       `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}` +
       `?modules=price,financialData,defaultKeyStatistics,cashflowStatementHistory,incomeStatementHistory&crumb=${encodeURIComponent(crumb)}`
 
+    const makeFtsUrl = (crumb) => {
+      const types = [
+        'annualCapitalExpenditure',
+        'annualOperatingCashFlow',
+        'annualFreeCashFlow',
+        'annualDepreciationAmortizationDepletion',
+        'annualChangeInWorkingCapital',
+        'annualInterestExpense',
+      ].join(',')
+      const period2 = Math.floor(Date.now() / 1000)
+      return `https://query2.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries/${ticker}` +
+        `?type=${types}&period1=1483228800&period2=${period2}&crumb=${encodeURIComponent(crumb)}`
+    }
+
     let result = await httpsGet(makeUrl(session.crumb), {
       'User-Agent': UA,
       'Accept': 'application/json',
@@ -90,6 +104,36 @@ app.get('/api/yahoo/:ticker', async (req, res) => {
         'Accept': 'application/json',
         'Cookie': session.cookie,
       })
+    }
+
+    // fetch fundamentalsTimeSeries in parallel for detailed cashflow fields
+    let ftsData = null
+    try {
+      const ftsResult = await httpsGet(makeFtsUrl(session.crumb), {
+        'User-Agent': UA,
+        'Accept': 'application/json',
+        'Cookie': session.cookie,
+      })
+      if (ftsResult.status === 200) {
+        ftsData = JSON.parse(ftsResult.body)
+      }
+    } catch (e) {
+      // non-fatal: ftsData stays null
+    }
+
+    // merge ftsData into quoteSummary result
+    if (ftsData && result.status === 200) {
+      try {
+        const qs = JSON.parse(result.body)
+        if (qs?.quoteSummary?.result?.[0]) {
+          qs.quoteSummary.result[0].fundamentalsTimeSeries = ftsData
+        }
+        res.set('Content-Type', 'application/json')
+        res.status(200).json(qs)
+        return
+      } catch (e) {
+        // merge failed, fall through to send original
+      }
     }
 
     res.set('Content-Type', 'application/json')

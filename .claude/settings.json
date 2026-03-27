@@ -3,7 +3,21 @@
     "allow": [
       "Bash(yarn add:*)",
       "Bash(npm install:*)",
-      "Bash(netstat -ano)"
+      "Bash(netstat -ano)",
+      "WebFetch(domain:query1.finance.yahoo.com)",
+      "WebFetch(domain:query2.finance.yahoo.com)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:yahooquery.dpguthrie.com)",
+      "WebFetch(domain:www.excelpricefeed.com)",
+      "WebFetch(domain:scrapfly.io)",
+      "WebFetch(domain:algotrading101.com)",
+      "WebFetch(domain:finance.yahoo.com)",
+      "WebFetch(domain:python-yahoofinance.readthedocs.io)",
+      "WebFetch(domain:medium.com)",
+      "WebFetch(domain:site.financialmodelingprep.com)",
+      "WebFetch(domain:intelligence.financialmodelingprep.com)",
+      "WebFetch(domain:openapi.twse.com.tw)"
     ]
   }
 }

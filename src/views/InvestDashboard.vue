@@ -457,17 +457,37 @@ async function autoFetch() {
       filled.push('Beta')
     }
 
-    // cashflowStatementHistory - CapEx 直接取值、OCF 加權、折舊、營運資金變動
+    // fundamentalsTimeSeries helper - 取最新一年的值
+    function ftsVal(fts, fieldName) {
+      const entries = fts?.timeseries?.result
+      if (!entries) return null
+      const entry = entries.find(e => fieldName in e)
+      if (!entry) return null
+      const arr = entry[fieldName]
+      if (!arr || arr.length === 0) return null
+      return arr[arr.length - 1]?.reportedValue?.raw ?? null
+    }
+
+    const fts = data.fundamentalsTimeSeries
+
+    // cashflowStatementHistory - 嘗試舊格式，若空則 fallback 到 fundamentalsTimeSeries
     const cfs = data.cashflowStatementHistory?.cashflowStatements
-    if (cfs && cfs.length > 0) {
-      const capexRaw = cfs[0].capitalExpenditures?.raw
-      if (capexRaw != null) {
-        const capexAbs = Math.abs(capexRaw)
-        document.getElementById('inp-capex').value = (capexAbs / 1e8).toFixed(0)
-        document.getElementById('sel-capex-u').value = '1e8'
-        document.getElementById('ap-capex-api').textContent = fmtB(capexAbs)
-        filled.push('CapEx')
-      }
+
+    // CapEx
+    const capexLegacy = cfs?.[0]?.capitalExpenditures?.raw
+    const capexFts    = ftsVal(fts, 'annualCapitalExpenditure')
+    const capexRaw    = capexLegacy ?? capexFts
+    if (capexRaw != null) {
+      const capexAbs = Math.abs(capexRaw)
+      document.getElementById('inp-capex').value = (capexAbs / 1e8).toFixed(0)
+      document.getElementById('sel-capex-u').value = '1e8'
+      document.getElementById('ap-capex-api').textContent = fmtB(capexAbs)
+      filled.push('CapEx')
+    }
+
+    // OCF 加權平均（舊格式）或最新年度值（FTS）
+    const ocfFts = ftsVal(fts, 'annualOperatingCashFlow')
+    if (cfs && cfs.length > 0 && cfs[0].totalCashFromOperatingActivities?.raw != null) {
       const weights = [4, 3, 2, 1].slice(0, cfs.length)
       const wSum = weights.reduce((a, b) => a + b, 0)
       const wOcf = cfs.reduce((sum, s, i) => {
@@ -475,29 +495,40 @@ async function autoFetch() {
         return sum + v * (weights[i] || 1)
       }, 0) / wSum
       document.getElementById('ap-ocf-avg').textContent = fmtB(wOcf)
-      const depr = cfs[0].depreciation?.raw
-      if (depr != null) document.getElementById('ap-depr').textContent = fmtB(Math.abs(depr))
-      const wcc = cfs[0].changeInWorkingCapital?.raw
-      if (wcc != null) document.getElementById('ap-wcc').textContent = (wcc >= 0 ? '+' : '') + fmtB(wcc)
+    } else if (ocfFts != null) {
+      document.getElementById('ap-ocf-avg').textContent = fmtB(ocfFts)
     }
+
+    // 折舊
+    const deprLegacy = cfs?.[0]?.depreciation?.raw
+    const deprFts    = ftsVal(fts, 'annualDepreciationAmortizationDepletion')
+    const deprRaw    = deprLegacy ?? deprFts
+    if (deprRaw != null) document.getElementById('ap-depr').textContent = fmtB(Math.abs(deprRaw))
+
+    // 營運資金變動
+    const wccLegacy = cfs?.[0]?.changeInWorkingCapital?.raw
+    const wccFts    = ftsVal(fts, 'annualChangeInWorkingCapital')
+    const wccRaw    = wccLegacy ?? wccFts
+    if (wccRaw != null) document.getElementById('ap-wcc').textContent = (wccRaw >= 0 ? '+' : '') + fmtB(wccRaw)
 
     // incomeStatementHistory - 利息費用、債務成本 Rd
     const isStmts = data.incomeStatementHistory?.incomeStatementHistory
-    if (isStmts && isStmts.length > 0) {
-      const interest = isStmts[0].interestExpense?.raw
-      if (interest != null) {
-        const iAbs = Math.abs(interest)
-        document.getElementById('ap-interest').textContent = fmtB(iAbs)
-        const totalDebtRaw = fd?.totalDebt?.raw
-        if (totalDebtRaw && totalDebtRaw > 0) {
-          document.getElementById('ap-rd').textContent = (iAbs / totalDebtRaw * 100).toFixed(2) + '%'
-        }
+    const interestLegacy = isStmts?.[0]?.interestExpense?.raw
+    const interestFts    = ftsVal(fts, 'annualInterestExpense')
+    const interestRaw    = interestLegacy ?? interestFts
+    if (interestRaw != null) {
+      const iAbs = Math.abs(interestRaw)
+      document.getElementById('ap-interest').textContent = fmtB(iAbs)
+      const totalDebtRaw = fd?.totalDebt?.raw
+      if (totalDebtRaw && totalDebtRaw > 0) {
+        document.getElementById('ap-rd').textContent = (iAbs / totalDebtRaw * 100).toFixed(2) + '%'
       }
     }
 
     // API 顯示欄位
-    if (fd?.netIncomeToCommon?.raw != null)
-      document.getElementById('ap-netincome').textContent = fmtB(fd.netIncomeToCommon.raw)
+    const netIncomeRaw = ks?.netIncomeToCommon?.raw ?? fd?.netIncomeToCommon?.raw
+    if (netIncomeRaw != null)
+      document.getElementById('ap-netincome').textContent = fmtB(netIncomeRaw)
     if (ks?.enterpriseToEbitda?.raw != null)
       document.getElementById('ap-ev-ebitda').textContent = ks.enterpriseToEbitda.raw.toFixed(1) + 'x'
     if (ks?.forwardEps?.raw != null)
