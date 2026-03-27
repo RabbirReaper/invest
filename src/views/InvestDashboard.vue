@@ -369,10 +369,27 @@ function switchPhase(ph) {
   recalc()
 }
 
+function clearPreviousData() {
+  const inputIds = ['inp-price', 'inp-name', 'inp-shares', 'inp-rev', 'inp-ocf', 'inp-fcf', 'inp-cash', 'inp-debt', 'inp-capex']
+  for (const id of inputIds) {
+    const el = document.getElementById(id)
+    if (el) el.value = ''
+  }
+  const apIds = ['ap-capex-api', 'ap-ocf-avg', 'ap-depr', 'ap-wcc', 'ap-interest', 'ap-rd', 'ap-netincome', 'ap-ev-ebitda', 'ap-feps', 'ap-inst', 'ap-net-cash']
+  for (const id of apIds) {
+    const el = document.getElementById(id)
+    if (el) { el.textContent = '—'; el.style.color = '' }
+  }
+  const betaSl = document.getElementById('sl-beta')
+  const betaLbl = document.getElementById('lbl-beta')
+  if (betaSl && betaLbl) { betaSl.value = betaSl.defaultValue; betaLbl.textContent = parseFloat(betaSl.defaultValue).toFixed(1) }
+}
+
 async function autoFetch() {
   const raw = document.getElementById('inp-ticker').value.trim()
   if (!raw) { showStatus('err', '請先輸入股票代碼'); return }
   const ticker = raw.toUpperCase()
+  clearPreviousData()
   showStatus('loading', `正在取得 ${ticker} 資料...`)
   document.getElementById('btn-fetch').textContent = '載入中'
 
