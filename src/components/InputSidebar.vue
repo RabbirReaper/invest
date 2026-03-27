@@ -118,45 +118,45 @@ const autoFetch        = inject('autoFetch')
 
     <div class="slbl">DCF 成長假設</div>
     <div class="ctrl">
-      <div class="ctrl-row"><span class="ctrl-name">Y1–5 成長率</span><span class="ctrl-val" id="lbl-g1">12%</span></div>
+      <div class="ctrl-row"><span class="ctrl-name">Y1–5 成長率 <span class="ctrl-abbr">g1</span></span><span class="ctrl-val" id="lbl-g1">12%</span></div>
       <input type="range" id="sl-g1" min="-10" max="50" step="1" value="12" @input="e => sync('g1', e.target.value, '%', 0)">
     </div>
     <div class="ctrl">
-      <div class="ctrl-row"><span class="ctrl-name">Y6–10 成長率</span><span class="ctrl-val" id="lbl-g2">8%</span></div>
+      <div class="ctrl-row"><span class="ctrl-name">Y6–10 成長率 <span class="ctrl-abbr">g2</span></span><span class="ctrl-val" id="lbl-g2">8%</span></div>
       <input type="range" id="sl-g2" min="-10" max="30" step="1" value="8" @input="e => sync('g2', e.target.value, '%', 0)">
     </div>
     <div class="ctrl">
-      <div class="ctrl-row"><span class="ctrl-name">永久成長率 g∞</span><span class="ctrl-val" id="lbl-gp">3%</span></div>
+      <div class="ctrl-row"><span class="ctrl-name">永久成長率 <span class="ctrl-abbr">g∞ (Terminal Growth)</span></span><span class="ctrl-val" id="lbl-gp">3%</span></div>
       <input type="range" id="sl-gp" min="0" max="5" step="0.5" value="3" @input="e => sync('gp', e.target.value, '%', 1)">
     </div>
     <div class="ctrl">
-      <div class="ctrl-row"><span class="ctrl-name">安全邊際</span><span class="ctrl-val" id="lbl-margin">25%</span></div>
+      <div class="ctrl-row"><span class="ctrl-name">安全邊際 <span class="ctrl-abbr">MOS (Margin of Safety)</span></span><span class="ctrl-val" id="lbl-margin">25%</span></div>
       <input type="range" id="sl-margin" min="10" max="50" step="5" value="25" @input="e => sync('margin', e.target.value, '%', 0)">
     </div>
 
     <div class="slbl">WACC 參數</div>
     <div class="ctrl">
-      <div class="ctrl-row"><span class="ctrl-name">無風險利率 Rf</span><span class="ctrl-val" id="lbl-rf">3.5%</span></div>
+      <div class="ctrl-row"><span class="ctrl-name">無風險利率 <span class="ctrl-abbr">Rf</span></span><span class="ctrl-val" id="lbl-rf">3.5%</span></div>
       <input type="range" id="sl-rf" min="0" max="10" step="0.5" value="3.5" @input="e => sync('rf', e.target.value, '%', 1)">
     </div>
     <div class="ctrl">
-      <div class="ctrl-row"><span class="ctrl-name">大盤預期報酬 Rm</span><span class="ctrl-val" id="lbl-rm">9.0%</span></div>
+      <div class="ctrl-row"><span class="ctrl-name">大盤預期報酬 <span class="ctrl-abbr">Rm</span></span><span class="ctrl-val" id="lbl-rm">9.0%</span></div>
       <input type="range" id="sl-rm" min="5" max="15" step="0.5" value="9" @input="e => sync('rm', e.target.value, '%', 1)">
     </div>
     <div class="ctrl">
-      <div class="ctrl-row"><span class="ctrl-name">Beta β</span><span class="ctrl-val" id="lbl-beta">1.2</span></div>
+      <div class="ctrl-row"><span class="ctrl-name">Beta <span class="ctrl-abbr">β — 系統性風險</span></span><span class="ctrl-val" id="lbl-beta">1.2</span></div>
       <input type="range" id="sl-beta" min="0.3" max="3" step="0.1" value="1.2" @input="e => sync('beta', e.target.value, '', 1)">
     </div>
     <div class="ctrl">
-      <div class="ctrl-row"><span class="ctrl-name">負債比 D/V</span><span class="ctrl-val" id="lbl-dv">40%</span></div>
+      <div class="ctrl-row"><span class="ctrl-name">負債比 <span class="ctrl-abbr">D/V = Debt/(Debt+Equity)</span></span><span class="ctrl-val" id="lbl-dv">40%</span></div>
       <input type="range" id="sl-dv" min="0" max="80" step="5" value="40" @input="e => sync('dv', e.target.value, '%', 0)">
     </div>
     <div class="ctrl">
-      <div class="ctrl-row"><span class="ctrl-name">信用利差</span><span class="ctrl-val" id="lbl-spread">2.0%</span></div>
+      <div class="ctrl-row"><span class="ctrl-name">信用利差 <span class="ctrl-abbr">Spread = Rd − Rf</span></span><span class="ctrl-val" id="lbl-spread">2.0%</span></div>
       <input type="range" id="sl-spread" min="0.5" max="6" step="0.5" value="2" @input="e => sync('spread', e.target.value, '%', 1)">
     </div>
     <div class="ctrl">
-      <div class="ctrl-row"><span class="ctrl-name">企業稅率 Tc</span><span class="ctrl-val" id="lbl-tc">21%</span></div>
+      <div class="ctrl-row"><span class="ctrl-name">企業稅率 <span class="ctrl-abbr">Tc</span></span><span class="ctrl-val" id="lbl-tc">21%</span></div>
       <input type="range" id="sl-tc" min="10" max="35" step="1" value="21" @input="e => sync('tc', e.target.value, '%', 0)">
     </div>
 

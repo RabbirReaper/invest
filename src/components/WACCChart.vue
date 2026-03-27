@@ -48,9 +48,9 @@ defineExpose({ update })
     <div class="ctitle">WACC vs 利率曲線</div>
     <div class="chart-h180"><canvas id="waccChart"></canvas></div>
     <div style="display:flex;gap:12px;margin-top:7px;flex-wrap:wrap;">
-      <span style="font-size:9px;color:var(--muted2);display:flex;align-items:center;gap:3px"><span style="width:10px;height:2px;background:#9b7fe8;display:inline-block"></span>WACC</span>
-      <span style="font-size:9px;color:var(--muted2);display:flex;align-items:center;gap:3px"><span style="width:10px;height:2px;background:#4d9de0;display:inline-block"></span>Re</span>
-      <span style="font-size:9px;color:var(--muted2);display:flex;align-items:center;gap:3px"><span style="width:10px;height:2px;background:#e8a838;display:inline-block"></span>Rd(稅後)</span>
+      <span style="font-size:9px;color:var(--muted2);display:flex;align-items:center;gap:3px"><span style="width:10px;height:2px;background:#9b7fe8;display:inline-block"></span>WACC = (E/V)·Re + (D/V)·Rd·(1−Tc)</span>
+      <span style="font-size:9px;color:var(--muted2);display:flex;align-items:center;gap:3px"><span style="width:10px;height:2px;background:#4d9de0;display:inline-block"></span>Re = Rf + β·(Rm−Rf)</span>
+      <span style="font-size:9px;color:var(--muted2);display:flex;align-items:center;gap:3px"><span style="width:10px;height:2px;background:#e8a838;display:inline-block"></span>Rd(稅後) = (Rf+Spread)·(1−Tc)</span>
     </div>
   </div>
 </template>

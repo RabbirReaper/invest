@@ -38,5 +38,9 @@ defineExpose({ update })
   <div class="card">
     <div class="ctitle">FCF 趨勢圖</div>
     <div class="chart-h180"><canvas id="fcfChart"></canvas></div>
+    <div style="display:flex;gap:12px;margin-top:7px;flex-wrap:wrap;">
+      <span style="font-size:9px;color:var(--muted2);display:flex;align-items:center;gap:3px"><span style="width:10px;height:2px;background:#4d9de0;display:inline-block"></span>FCF (自由現金流 = OCF − CapEx)</span>
+      <span style="font-size:9px;color:var(--muted2);display:flex;align-items:center;gap:3px"><span style="width:10px;height:2px;background:#2ec4a0;display:inline-block"></span>PV (現值 = FCF / (1+WACC)^n)</span>
+    </div>
   </div>
 </template>

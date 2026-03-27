@@ -43,6 +43,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Noto Sans TC', s
 .ctrl { margin-bottom: 9px; }
 .ctrl-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
 .ctrl-name { font-size: 11px; color: var(--muted2); }
+.ctrl-abbr { font-size: 8px; color: var(--muted); font-family: 'DM Mono', monospace; margin-left: 2px; opacity: 0.7; }
 .ctrl-val { font-size: 11px; font-weight: 500; color: var(--text); font-family: 'DM Mono', monospace; }
 input[type=range] { width: 100%; -webkit-appearance: none; height: 3px; border-radius: 2px; background: var(--s3); outline: none; cursor: pointer; }
 input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%; background: var(--text); cursor: pointer; }
@@ -75,7 +76,9 @@ input:focus, select:focus { border-color: var(--blue); }
 
 .mrow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; }
 .mc { background: var(--s2); border-radius: 8px; padding: 9px 11px; }
-.mc-lbl { font-size: 9px; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 2px; }
+.mc-lbl { font-size: 9px; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 1px; }
+.mc-abbr { font-size: 8px; color: var(--muted2); font-family: 'DM Mono', monospace; margin-left: 3px; opacity: 0.7; }
+.mc-formula { font-size: 8px; color: var(--muted2); font-family: 'DM Mono', monospace; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.7; }
 .mc-val { font-size: 18px; font-weight: 500; line-height: 1.2; }
 .mc-sub { font-size: 9px; color: var(--muted); margin-top: 2px; }
 
@@ -84,6 +87,7 @@ input:focus, select:focus { border-color: var(--blue); }
 .tbl th:first-child { text-align: left; }
 .tbl td { padding: 5px 7px; border-bottom: 0.5px solid var(--border); color: var(--text); text-align: right; font-family: 'DM Mono', monospace; }
 .tbl td:first-child { text-align: left; color: var(--muted2); font-family: 'Noto Sans TC', sans-serif; font-size: 11px; }
+.tbl-abbr { font-size: 8px; color: var(--muted); font-family: 'DM Mono', monospace; margin-left: 3px; opacity: 0.7; }
 .tbl tr:last-child td { border-bottom: none; }
 .tbl tr.hl td { background: var(--s2); }
 .tbl tr.ttl td { color: var(--text); font-weight: 500; border-top: 0.5px solid var(--border2); }
