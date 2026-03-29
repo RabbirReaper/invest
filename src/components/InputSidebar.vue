@@ -78,6 +78,11 @@ const autoFetch        = inject('autoFetch')
         <div class="fcb-divider"></div>
         <div class="fcb-row"><span class="fcb-label">= FCF (TTM)</span><span class="fcb-val good" id="fcb-fcf">300億</span></div>
         <div class="fcb-row"><span class="fcb-label">FCF Margin</span><span class="fcb-val" id="fcb-margin">10.0%</span></div>
+        <div class="fcb-divider" style="margin-top:6px"></div>
+        <div class="fcb-row" style="color:var(--muted);font-size:10px;margin-top:4px"><span class="fcb-label">OCF</span><span class="fcb-val" id="fcb-maint-ocf">—</span></div>
+        <div class="fcb-row" style="color:var(--muted);font-size:10px"><span class="fcb-label">− 折舊（維護型）</span><span class="fcb-val" id="fcb-maint-depr">—</span></div>
+        <div class="fcb-divider"></div>
+        <div class="fcb-row"><span class="fcb-label">= 維護型 FCF</span><span class="fcb-val" id="fcb-maint-fcf" style="color:var(--amber)">—</span></div>
       </div>
     </div>
 
@@ -99,6 +104,7 @@ const autoFetch        = inject('autoFetch')
     <div style="display:none">
       <input type="number" id="inp-fcf" value="300">
       <select id="sel-fcf-u"><option value="1e8">億</option><option value="1e6">百萬</option></select>
+      <input type="number" id="inp-depr" value="0">
     </div>
 
     <div class="ctrl">

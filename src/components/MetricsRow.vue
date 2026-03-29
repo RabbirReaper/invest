@@ -13,6 +13,12 @@
       <div class="mc-sub" id="m-iv-cur">Fair Value</div>
     </div>
     <div class="mc">
+      <div class="mc-lbl">維護型 IV <span class="mc-abbr">(OCF−折舊)</span></div>
+      <div class="mc-formula">= (DCF with OCF−Depr) / Shares</div>
+      <div class="mc-val" id="m-iv-maint" style="color:var(--amber)">—</div>
+      <div class="mc-sub" id="m-iv-maint-cur">Maintenance FCF</div>
+    </div>
+    <div class="mc">
       <div class="mc-lbl">買入目標價 <span class="mc-abbr">TP</span></div>
       <div class="mc-formula">= IV × (1 − MOS)</div>
       <div class="mc-val" id="m-target" style="color:var(--teal)">—</div>

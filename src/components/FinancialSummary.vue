@@ -26,7 +26,7 @@
         <span class="api-lbl">OCF 年加權平均</span>
         <span class="api-val" id="ap-ocf-avg">—</span>
       </div>
-      <div class="api-item">
+      <div class="api-item api-item--calc">
         <span class="api-lbl">折舊費用（維護型支出）</span>
         <span class="api-val" id="ap-depr">—</span>
       </div>

@@ -75,7 +75,23 @@ function fcfFromComponents() {
   document.getElementById('fcb-fcf').textContent   = fmtB(fcf)
   const rev = n('inp-rev') * sv('sel-rev-u')
   document.getElementById('fcb-margin').textContent = rev > 0 ? (fcf / rev * 100).toFixed(1) + '%' : '-'
+  updateMaintFcfDisplay(ocf)
   recalc()
+}
+
+function updateMaintFcfDisplay(ocf) {
+  const depr = n('inp-depr')
+  document.getElementById('fcb-maint-ocf').textContent   = fmtB(ocf)
+  document.getElementById('fcb-maint-depr').textContent  = depr > 0 ? '-' + fmtB(depr) : '—'
+  const maintFcf = depr > 0 ? ocf - depr : null
+  const el = document.getElementById('fcb-maint-fcf')
+  if (maintFcf != null) {
+    el.textContent = fmtB(maintFcf)
+    el.style.color = maintFcf > 0 ? 'var(--teal)' : 'var(--red)'
+  } else {
+    el.textContent = '—'
+    el.style.color = 'var(--amber)'
+  }
 }
 
 function recalc() {
@@ -101,6 +117,7 @@ function recalc() {
   document.getElementById('fcb-capex').textContent  = '-' + fmtB(capex)
   document.getElementById('fcb-fcf').textContent    = fmtB(fcf0)
   document.getElementById('fcb-margin').textContent = rev > 0 ? (fcf0 / rev * 100).toFixed(1) + '%' : '-'
+  updateMaintFcfDisplay(ocf)
 
   // 決定實際用於 DCF 的 FCF
   const fcfMode = document.getElementById('sel-fcf-mode').value
@@ -125,6 +142,9 @@ function recalc() {
     document.getElementById('m-iv-cur').textContent = '\u9700\u6b63 FCF \u624d\u80fd\u4f30\u5024'
     document.getElementById('m-target').textContent = '\u2014'
     document.getElementById('m-upside').textContent = '\u2014'
+    document.getElementById('m-iv-maint').textContent = '\u2014'
+    document.getElementById('m-iv-maint').style.color = 'var(--amber)'
+    document.getElementById('m-iv-maint-cur').textContent = 'Maintenance FCF'
     return
   }
 
@@ -164,6 +184,36 @@ function recalc() {
   document.getElementById('m-iv').textContent       = iv.toFixed(2)
   document.getElementById('m-iv').style.color       = 'var(--blue)'
   document.getElementById('m-iv-cur').textContent   = priceCur + ' Fair Value'
+
+  // 維護型 IV：以 OCF − 折舊 作為 FCF 基礎跑 DCF
+  const depr = n('inp-depr')
+  const maintIvEl    = document.getElementById('m-iv-maint')
+  const maintIvCurEl = document.getElementById('m-iv-maint-cur')
+  if (depr > 0 && ocf > 0) {
+    const fcfMaint = ocf - depr
+    if (fcfMaint > 0) {
+      const resMaint = runDCF(fcfMaint, g1, g2, gp, wacc)
+      if (resMaint) {
+        const ivMaint = (resMaint.total + cash - debt) / shares
+        maintIvEl.textContent = ivMaint.toFixed(2)
+        maintIvEl.style.color = ivMaint > price ? 'var(--teal)' : 'var(--red)'
+        maintIvCurEl.textContent = priceCur + ' Maint. FCF'
+      } else {
+        maintIvEl.textContent = '模型失效'
+        maintIvEl.style.color = 'var(--red)'
+        maintIvCurEl.textContent = 'Maintenance FCF'
+      }
+    } else {
+      maintIvEl.textContent = 'FCF<=0'
+      maintIvEl.style.color = 'var(--red)'
+      maintIvCurEl.textContent = 'OCF < 折舊'
+    }
+  } else {
+    maintIvEl.textContent = '—'
+    maintIvEl.style.color = 'var(--amber)'
+    maintIvCurEl.textContent = '需折舊資料'
+  }
+
   document.getElementById('m-target').textContent   = target.toFixed(2)
   document.getElementById('m-target-sub').textContent = '含 ' + marginPct.toFixed(0) + '% 安全邊際'
   const uEl = document.getElementById('m-upside')
@@ -528,7 +578,11 @@ async function autoFetch() {
     const deprLegacy = cfs?.[0]?.depreciation?.raw
     const deprFts    = ftsVal(fts, 'annualDepreciationAmortizationDepletion')
     const deprRaw    = deprLegacy ?? deprFts
-    if (deprRaw != null) document.getElementById('ap-depr').textContent = fmtB(Math.abs(deprRaw))
+    if (deprRaw != null) {
+      const deprAbs = Math.abs(deprRaw)
+      document.getElementById('ap-depr').textContent = fmtB(deprAbs)
+      document.getElementById('inp-depr').value = (deprAbs / 1e8).toFixed(1)
+    }
 
     // 營運資金變動
     const wccLegacy = cfs?.[0]?.changeInWorkingCapital?.raw
