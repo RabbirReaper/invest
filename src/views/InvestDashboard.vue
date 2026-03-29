@@ -607,9 +607,30 @@ async function autoFetch() {
     if (g1Auto != null && isFinite(g1Auto)) {
       const g1Clamped = Math.min(Math.max(g1Auto, -10), 50)
       if (setSlider('sl-g1', g1Clamped, 'lbl-g1', '%', 0)) filled.push('g1')
-      // g2 設為 g1 的 60%，下限 2%，以反映長期成長趨緩
+      // g2 = g1 × 0.6，下限 2%，以反映長期成長趨緩
       const g2Auto = Math.max(g1Clamped * 0.6, 2)
       if (setSlider('sl-g2', g2Auto, 'lbl-g2', '%', 0)) filled.push('g2')
+      // 更新 g2 公式說明
+      const g2FormulaEl = document.getElementById('formula-g2')
+      if (g2FormulaEl) g2FormulaEl.textContent = `= g1(${g1Clamped.toFixed(0)}%) × 0.6 = ${g2Auto.toFixed(1)}%（自動）`
+    }
+
+    // gp — 用 Rf − 2% 通膨目標推算長期名目 GDP 成長率，限制在 1%~4%
+    const rfForGp = marketParams?.rf ?? parseFloat(document.getElementById('sl-rf').value)
+    if (rfForGp != null && isFinite(rfForGp)) {
+      const gpAuto = Math.min(Math.max(rfForGp - 2, 1), 4)
+      if (setSlider('sl-gp', gpAuto, 'lbl-gp', '%', 1)) filled.push('g∞')
+      const gpFormulaEl = document.getElementById('formula-gp')
+      if (gpFormulaEl) gpFormulaEl.textContent = `= Rf(${rfForGp.toFixed(1)}%) − 2% 通膨 = ${gpAuto.toFixed(1)}%（^TNX 推算）`
+    }
+
+    // MOS — 依 Beta 推算安全邊際：高 Beta 需要更大緩衝
+    const betaVal = ks?.beta?.raw
+    if (betaVal != null && isFinite(betaVal)) {
+      const mosAuto = betaVal < 0.8 ? 20 : betaVal <= 1.2 ? 25 : 30
+      if (setSlider('sl-margin', mosAuto, 'lbl-margin', '%', 0)) filled.push('MOS')
+      const mosFormulaEl = document.getElementById('formula-mos')
+      if (mosFormulaEl) mosFormulaEl.textContent = `= Beta(${betaVal.toFixed(2)}) → ${mosAuto}%（Beta<0.8:20% / 0.8~1.2:25% / >1.2:30%）`
     }
 
     showStatus('ok', `已帶入：${filled.join('、')}（數據來源：Yahoo Finance TTM）`)
