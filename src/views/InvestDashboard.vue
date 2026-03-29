@@ -609,7 +609,7 @@ async function autoFetch() {
     const marketCapRaw = pr?.marketCap?.raw
     if (fd?.totalDebt?.raw != null && marketCapRaw != null && marketCapRaw > 0) {
       const dvRaw = fd.totalDebt.raw / (fd.totalDebt.raw + marketCapRaw) * 100
-      if (setSlider('sl-dv', dvRaw, 'lbl-dv', '%', 0)) filled.push('D/V')
+      if (setSlider('sl-dv', dvRaw, 'lbl-dv', '%', 2)) filled.push('D/V')
     }
 
     // fundamentalsTimeSeries helper - 取最新一年的值

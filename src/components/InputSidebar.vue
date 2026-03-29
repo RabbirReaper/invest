@@ -159,7 +159,7 @@ const autoFetch        = inject('autoFetch')
     </div>
     <div class="ctrl">
       <div class="ctrl-row"><span class="ctrl-name">負債比 <span class="ctrl-abbr">D/V = Debt/(Debt+Equity)</span></span><span class="ctrl-val" id="lbl-dv">40%</span></div>
-      <input type="range" id="sl-dv" min="0" max="80" step="5" value="40" @input="e => sync('dv', e.target.value, '%', 0)">
+      <input type="range" id="sl-dv" min="0" max="80" step="0.01" value="40" @input="e => sync('dv', e.target.value, '%', 2)">
     </div>
     <div class="ctrl">
       <div class="ctrl-row"><span class="ctrl-name">信用利差 <span class="ctrl-abbr">Spread = Rd − Rf</span></span><span class="ctrl-val" id="lbl-spread">2.0%</span></div>
