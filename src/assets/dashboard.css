@@ -20,6 +20,7 @@ body { background: var(--bg); color: var(--text); font-family: 'Noto Sans TC', s
 .rf-hint { font-size: 9px; color: var(--muted); font-family: 'DM Mono', monospace; white-space: nowrap; }
 .api-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
 .api-item { background: var(--s2); border-radius: 7px; padding: 8px 10px; }
+.api-item--calc { outline: 1px solid var(--blue); }
 .api-lbl { display: block; font-size: 9px; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .api-val { display: block; font-size: 15px; font-weight: 500; font-family: 'DM Mono', monospace; color: var(--text); }
 .phase-row { display: flex; gap: 4px; padding: 8px 20px; background: var(--s1); border-bottom: 0.5px solid var(--border); flex-wrap: wrap; align-items: center; flex-shrink: 0; }
