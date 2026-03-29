@@ -80,7 +80,7 @@ const autoFetch        = inject('autoFetch')
         <div class="fcb-row"><span class="fcb-label">FCF Margin</span><span class="fcb-val" id="fcb-margin">10.0%</span></div>
         <div class="fcb-divider" style="margin-top:6px"></div>
         <div class="fcb-row" style="color:var(--muted);font-size:10px;margin-top:4px"><span class="fcb-label">OCF</span><span class="fcb-val" id="fcb-maint-ocf">—</span></div>
-        <div class="fcb-row" style="color:var(--muted);font-size:10px"><span class="fcb-label">− 折舊（維護型）</span><span class="fcb-val" id="fcb-maint-depr">—</span></div>
+        <div class="fcb-row" style="color:var(--muted);font-size:10px"><span class="fcb-label">− min(CapEx, 折舊)</span><span class="fcb-val" id="fcb-maint-depr">—</span></div>
         <div class="fcb-divider"></div>
         <div class="fcb-row"><span class="fcb-label">= 維護型 FCF</span><span class="fcb-val" id="fcb-maint-fcf" style="color:var(--amber)">—</span></div>
       </div>
@@ -147,7 +147,7 @@ const autoFetch        = inject('autoFetch')
     <div class="slbl">WACC 參數</div>
     <div class="ctrl">
       <div class="ctrl-row"><span class="ctrl-name">無風險利率 <span class="ctrl-abbr">Rf</span></span><span class="ctrl-val" id="lbl-rf">3.5%</span></div>
-      <input type="range" id="sl-rf" min="0" max="10" step="0.5" value="3.5" @input="e => sync('rf', e.target.value, '%', 1)">
+      <input type="range" id="sl-rf" min="0" max="10" step="0.01" value="3.5" @input="e => sync('rf', e.target.value, '%', 2)">
     </div>
     <div class="ctrl">
       <div class="ctrl-row"><span class="ctrl-name">大盤預期報酬 <span class="ctrl-abbr">Rm</span></span><span class="ctrl-val" id="lbl-rm">9.0%</span></div>

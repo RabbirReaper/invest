@@ -23,6 +23,9 @@ body { background: var(--bg); color: var(--text); font-family: 'Noto Sans TC', s
 .api-item--calc { outline: 1px solid var(--blue); }
 .api-lbl { display: block; font-size: 9px; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .api-val { display: block; font-size: 15px; font-weight: 500; font-family: 'DM Mono', monospace; color: var(--text); }
+.api-input { width: 100%; background: transparent; border: none; border-bottom: 0.5px solid var(--border2); border-radius: 0; padding: 0; font-size: 15px; font-weight: 500; font-family: 'DM Mono', monospace; color: var(--text); outline: none; cursor: text; }
+.api-input:focus { border-bottom-color: var(--blue); }
+.wcc-warn { font-size: 9px; font-family: 'DM Mono', monospace; color: var(--amber); background: rgba(232,168,56,0.1); border-radius: 5px; padding: 4px 8px; margin-top: 5px; }
 .phase-row { display: flex; gap: 4px; padding: 8px 20px; background: var(--s1); border-bottom: 0.5px solid var(--border); flex-wrap: wrap; align-items: center; flex-shrink: 0; }
 .phase-lbl { font-size: 9px; color: var(--muted); font-family: 'DM Mono', monospace; letter-spacing: 1px; margin-right: 4px; }
 .pbtn { font-size: 10px; font-family: 'DM Mono', monospace; padding: 3px 12px; border-radius: 20px; border: 0.5px solid var(--border2); background: transparent; color: var(--muted2); cursor: pointer; transition: all .15s; }

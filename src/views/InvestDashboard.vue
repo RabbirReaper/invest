@@ -52,7 +52,7 @@ function sync(key, val, suf, dec) {
 function syncRfTop() {
   const v = Math.min(Math.max(parseFloat(document.getElementById('inp-rf-top').value) || 3.5, 0), 10)
   document.getElementById('sl-rf').value = v
-  document.getElementById('lbl-rf').textContent = v.toFixed(1) + '%'
+  document.getElementById('lbl-rf').textContent = v.toFixed(2) + '%'
   recalc()
 }
 
@@ -80,10 +80,13 @@ function fcfFromComponents() {
 }
 
 function updateMaintFcfDisplay(ocf) {
-  const depr = n('inp-depr')
-  document.getElementById('fcb-maint-ocf').textContent   = fmtB(ocf)
-  document.getElementById('fcb-maint-depr').textContent  = depr > 0 ? '-' + fmtB(depr) : '—'
-  const maintFcf = depr > 0 ? ocf - depr : null
+  const depr  = parseFloat(document.getElementById('ap-depr')?.value) * 1e8 || 0
+  const capex = n('inp-capex') * sv('sel-capex-u')
+  document.getElementById('fcb-maint-ocf').textContent = fmtB(ocf)
+  const hasBoth    = depr > 0 && capex > 0
+  const maintCapex = hasBoth ? Math.min(capex, depr) : (depr > 0 ? depr : null)
+  document.getElementById('fcb-maint-depr').textContent = maintCapex != null ? '-' + fmtB(maintCapex) : '—'
+  const maintFcf = maintCapex != null && ocf > 0 ? ocf - maintCapex : null
   const el = document.getElementById('fcb-maint-fcf')
   if (maintFcf != null) {
     el.textContent = fmtB(maintFcf)
@@ -98,6 +101,15 @@ function recalc() {
   const rf = n('sl-rf'), beta = n('sl-beta'), dvPct = n('sl-dv')
   const spread = n('sl-spread'), tc = n('sl-tc'), rm = n('sl-rm')
   const g1 = n('sl-g1'), g2 = n('sl-g2'), gp = n('sl-gp'), marginPct = n('sl-margin')
+
+  // 機構持股 MOS 調整：高持股流動性佳可降低緩衝，低持股波動高需增加緩衝
+  const instVal = parseFloat(document.getElementById('ap-inst')?.value) || 0
+  let adjustedMarginPct = marginPct
+  if (instVal > 0) {
+    if (instVal > 70) adjustedMarginPct = Math.max(marginPct - 5, 15)
+    else if (instVal < 30) adjustedMarginPct = marginPct + 5
+  }
+
   const price = n('inp-price')
   const priceCur = document.getElementById('sel-price-cur').value
   const shares = n('inp-shares') * sv('sel-shares-u')
@@ -164,7 +176,7 @@ function recalc() {
   const { fcfs, pvs, pv5, pv10, tvPV, total } = res
   const equity = total + cash - debt
   const iv     = equity / shares
-  const target = iv * (1 - marginPct / 100)
+  const target = iv * (1 - adjustedMarginPct / 100)
   const upside  = (iv - price) / price * 100
   const uTarget = (target - price) / price * 100
 
@@ -174,7 +186,7 @@ function recalc() {
     ocf, capex, fcf0, cash, debt,
     rf, beta, dvPct, spread, tc,
     wacc: parseFloat((wacc * 100).toFixed(2)),
-    g1, g2, gp, marginPct,
+    g1, g2, gp, marginPct, adjustedMarginPct,
     pv5, pv10, tvPV, total,
     equity, iv: parseFloat(iv.toFixed(2)),
     target: parseFloat(target.toFixed(2)),
@@ -185,12 +197,13 @@ function recalc() {
   document.getElementById('m-iv').style.color       = 'var(--blue)'
   document.getElementById('m-iv-cur').textContent   = priceCur + ' Fair Value'
 
-  // 維護型 IV：以 OCF − 折舊 作為 FCF 基礎跑 DCF
-  const depr = n('inp-depr')
+  // 維護型 IV：FCF = OCF − min(CapEx, 折舊)
+  const depr = parseFloat(document.getElementById('ap-depr')?.value) * 1e8 || 0
   const maintIvEl    = document.getElementById('m-iv-maint')
   const maintIvCurEl = document.getElementById('m-iv-maint-cur')
   if (depr > 0 && ocf > 0) {
-    const fcfMaint = ocf - depr
+    const maintCapex = capex > 0 ? Math.min(capex, depr) : depr
+    const fcfMaint   = ocf - maintCapex
     if (fcfMaint > 0) {
       const resMaint = runDCF(fcfMaint, g1, g2, gp, wacc)
       if (resMaint) {
@@ -206,7 +219,7 @@ function recalc() {
     } else {
       maintIvEl.textContent = 'FCF<=0'
       maintIvEl.style.color = 'var(--red)'
-      maintIvCurEl.textContent = 'OCF < 折舊'
+      maintIvCurEl.textContent = 'OCF < min(CapEx,折舊)'
     }
   } else {
     maintIvEl.textContent = '—'
@@ -215,7 +228,7 @@ function recalc() {
   }
 
   document.getElementById('m-target').textContent   = target.toFixed(2)
-  document.getElementById('m-target-sub').textContent = '含 ' + marginPct.toFixed(0) + '% 安全邊際'
+  document.getElementById('m-target-sub').textContent = '含 ' + adjustedMarginPct.toFixed(0) + '% 安全邊際' + (instVal > 0 && adjustedMarginPct !== marginPct ? '（機構調整後）' : '')
   const uEl = document.getElementById('m-upside')
   uEl.textContent  = (upside >= 0 ? '+' : '') + upside.toFixed(1) + '%'
   uEl.style.color  = upside > 0 ? 'var(--teal)' : 'var(--red)'
@@ -265,10 +278,77 @@ function recalc() {
   utEl.textContent = (uTarget >= 0 ? '+' : '') + uTarget.toFixed(1) + '%'
   utEl.className   = 'right ' + (uTarget > 0 ? 'good' : 'bad')
 
+  // P/E 估值交叉驗證：Forward EPS × 20x
+  const feps   = parseFloat(document.getElementById('ap-feps')?.value) || 0
+  const peIvEl  = document.getElementById('ev-pe-iv')
+  const peNoteEl = document.getElementById('ev-pe-note')
+  if (feps > 0 && peIvEl) {
+    const PE_RATIO = 20
+    const peIV = feps * PE_RATIO
+    peIvEl.textContent = peIV.toFixed(2) + ' ' + priceCur
+    peIvEl.className   = 'right ' + (peIV > price ? 'good' : 'bad')
+    if (peNoteEl) {
+      const peDiff = Math.abs(peIV - iv) / iv * 100
+      peNoteEl.textContent = peDiff > 50
+        ? 'P/E 與 DCF 差異 ' + peDiff.toFixed(0) + '%，請確認成長假設'
+        : 'P/E 與 DCF 收斂（差異 ' + peDiff.toFixed(0) + '%）'
+      peNoteEl.style.color = peDiff > 50 ? 'var(--amber)' : 'var(--muted)'
+    }
+  } else if (peIvEl) {
+    peIvEl.textContent = '—'
+    if (peNoteEl) { peNoteEl.textContent = '需在財務速覽填入 Forward EPS'; peNoteEl.style.color = 'var(--muted)' }
+  }
+
+  // EV/EBITDA 相對估值交叉驗證
+  const evEbitda    = parseFloat(document.getElementById('ap-ev-ebitda')?.value) || 0
+  const evRelEl     = document.getElementById('ev-ebitda-check')
+  const evEbitdaNoteEl = document.getElementById('ev-ebitda-note')
+  const niEl        = document.getElementById('ap-netincome')
+  const netIncome   = parseFloat(niEl?.dataset?.raw) || 0
+  const interest    = (parseFloat(document.getElementById('ap-interest')?.value) || 0) * 1e8
+  if (evEbitda > 0 && evRelEl) {
+    const ebitdaApprox = netIncome + interest + depr
+    if (ebitdaApprox > 0) {
+      const impliedEV     = evEbitda * ebitdaApprox
+      const impliedEquity = impliedEV + cash - debt
+      const impliedIV     = impliedEquity / shares
+      evRelEl.textContent = impliedIV.toFixed(2) + ' ' + priceCur
+      evRelEl.className   = 'right ' + (impliedIV > price ? 'good' : 'bad')
+      if (evEbitdaNoteEl) {
+        evEbitdaNoteEl.textContent = `EBITDA ≈ ${fmtB(ebitdaApprox)}（淨利 + 利息 + 折舊）`
+        evEbitdaNoteEl.style.color = 'var(--muted)'
+      }
+    } else {
+      evRelEl.textContent = '資料不足'
+      evRelEl.style.color = 'var(--muted)'
+      if (evEbitdaNoteEl) evEbitdaNoteEl.textContent = '需填：淨利 / 利息 / 折舊'
+    }
+  } else if (evRelEl) {
+    evRelEl.textContent = '—'
+    if (evEbitdaNoteEl) evEbitdaNoteEl.textContent = 'EBITDA ≈ 淨利 + 利息費用 + 折舊（近似）'
+  }
+
+  // WCC 警告：|△WC / Revenue| > 5% 時提示 FCF 品質疑慮
+  const wccVal    = (parseFloat(document.getElementById('ap-wcc')?.value) || 0) * 1e8
+  const wccWarnEl = document.getElementById('wcc-warning')
+  if (wccWarnEl) {
+    if (rev > 0 && Math.abs(wccVal) > 0) {
+      const wccRatio = Math.abs(wccVal) / rev
+      if (wccRatio > 0.05) {
+        wccWarnEl.textContent = '注意：△WC / 營收 = ' + (wccRatio * 100).toFixed(1) + '%，超過 5%，FCF 品質可能受影響'
+        wccWarnEl.style.display = 'block'
+      } else {
+        wccWarnEl.style.display = 'none'
+      }
+    } else {
+      wccWarnEl.style.display = 'none'
+    }
+  }
+
   updateConc(wacc, iv, target, price, dvPct, gp, wacc * 100)
   waccChartRef.value?.update(beta, dvPct, spread, tc, rf, rm)
   fcfChartRef.value?.update(fcfs, pvs)
-  updateSens(fcf0, g1, g2, gp, shares, marginPct, price, wacc, cash, debt, curScenario)
+  updateSens(fcf0, g1, g2, gp, shares, adjustedMarginPct, price, wacc, cash, debt, curScenario)
 }
 
 function updateConc(wacc, iv, target, price, dv, gp, wPct) {
@@ -347,11 +427,12 @@ function updateSens(fcf0, g1, g2, gp, shares, marginPct, price, baseWacc, cash, 
   html += '</tr></thead><tbody>'
   g1s.forEach(g => {
     const isCur = Math.abs(g - g1) < 0.5
+    const g2Dynamic = Math.max(g * 0.6, 2)
     html += `<tr${isCur ? ' style="outline:0.5px solid rgba(255,255,255,0.15)"' : ''}><td class="mono">${g.toFixed(0)}%${isCur ? ' ◆' : ''}</td>`
     waccs.forEach(w => {
       if (w <= gp / 100 + 0.005) { html += '<td style="color:var(--muted)">-</td>'; return }
       let cf = adjFcf, pv = 0
-      for (let i = 1; i <= 10; i++) { cf *= (1 + (i <= 5 ? g / 100 : g2 / 100)); pv += cf / Math.pow(1 + w, i) }
+      for (let i = 1; i <= 10; i++) { cf *= (1 + (i <= 5 ? g / 100 : g2Dynamic / 100)); pv += cf / Math.pow(1 + w, i) }
       const tv  = cf * (1 + gp / 100) / (w - gp / 100) / Math.pow(1 + w, 10)
       const tgt = (pv + tv + cash - debt) / shares * (1 - marginPct / 100)
       const up  = (tgt - price) / price * 100
@@ -389,7 +470,7 @@ function switchPhase(ph) {
     document.getElementById(id).value = val
     document.getElementById(lbl).textContent = parseFloat(val).toFixed(dec) + suf
   }
-  ss('sl-rf',     p.rf,     'lbl-rf',     '%', 1)
+  ss('sl-rf',     p.rf,     'lbl-rf',     '%', 2)
   ss('sl-beta',   p.beta,   'lbl-beta',   '',  1)
   ss('sl-dv',     p.dv,     'lbl-dv',     '%', 0)
   ss('sl-spread', p.spread, 'lbl-spread', '%', 1)
@@ -420,8 +501,21 @@ function clearPreviousData() {
   const apIds = ['ap-fcf', 'ap-capex-api', 'ap-ocf-avg', 'ap-depr', 'ap-wcc', 'ap-interest', 'ap-rd', 'ap-netincome', 'ap-ev-ebitda', 'ap-feps', 'ap-inst', 'ap-net-cash']
   for (const id of apIds) {
     const el = document.getElementById(id)
-    if (el) { el.textContent = '—'; el.style.color = '' }
+    if (!el) continue
+    if (el.tagName === 'INPUT') {
+      el.value = ''
+    } else {
+      el.textContent = '—'
+      el.style.color = ''
+      el.dataset.raw = ''
+    }
   }
+  const wccWarnEl = document.getElementById('wcc-warning')
+  if (wccWarnEl) wccWarnEl.style.display = 'none'
+  const peIvEl = document.getElementById('ev-pe-iv')
+  if (peIvEl) peIvEl.textContent = '—'
+  const evRelEl = document.getElementById('ev-ebitda-check')
+  if (evRelEl) evRelEl.textContent = '—'
   const betaSl = document.getElementById('sl-beta')
   const betaLbl = document.getElementById('lbl-beta')
   if (betaSl && betaLbl) { betaSl.value = betaSl.defaultValue; betaLbl.textContent = parseFloat(betaSl.defaultValue).toFixed(1) }
@@ -580,7 +674,7 @@ async function autoFetch() {
     const deprRaw    = deprLegacy ?? deprFts
     if (deprRaw != null) {
       const deprAbs = Math.abs(deprRaw)
-      document.getElementById('ap-depr').textContent = fmtB(deprAbs)
+      document.getElementById('ap-depr').value = (deprAbs / 1e8).toFixed(1)
       document.getElementById('inp-depr').value = (deprAbs / 1e8).toFixed(1)
     }
 
@@ -588,7 +682,7 @@ async function autoFetch() {
     const wccLegacy = cfs?.[0]?.changeInWorkingCapital?.raw
     const wccFts    = ftsVal(fts, 'annualChangeInWorkingCapital')
     const wccRaw    = wccLegacy ?? wccFts
-    if (wccRaw != null) document.getElementById('ap-wcc').textContent = (wccRaw >= 0 ? '+' : '') + fmtB(wccRaw)
+    if (wccRaw != null) document.getElementById('ap-wcc').value = (wccRaw / 1e8).toFixed(1)
 
     // incomeStatementHistory - 利息費用、債務成本 Rd
     const isStmts = data.incomeStatementHistory?.incomeStatementHistory
@@ -597,7 +691,7 @@ async function autoFetch() {
     const interestRaw    = interestLegacy ?? interestFts
     if (interestRaw != null) {
       const iAbs = Math.abs(interestRaw)
-      document.getElementById('ap-interest').textContent = fmtB(iAbs)
+      document.getElementById('ap-interest').value = (iAbs / 1e8).toFixed(2)
       const totalDebtRaw = fd?.totalDebt?.raw
       if (totalDebtRaw && totalDebtRaw > 0) {
         document.getElementById('ap-rd').textContent = (iAbs / totalDebtRaw * 100).toFixed(2) + '%'
@@ -615,14 +709,17 @@ async function autoFetch() {
 
     // API 顯示欄位
     const netIncomeRaw = ks?.netIncomeToCommon?.raw ?? fd?.netIncomeToCommon?.raw
-    if (netIncomeRaw != null)
-      document.getElementById('ap-netincome').textContent = fmtB(netIncomeRaw)
+    if (netIncomeRaw != null) {
+      const niEl = document.getElementById('ap-netincome')
+      niEl.textContent = fmtB(netIncomeRaw)
+      niEl.dataset.raw = netIncomeRaw
+    }
     if (ks?.enterpriseToEbitda?.raw != null)
-      document.getElementById('ap-ev-ebitda').textContent = ks.enterpriseToEbitda.raw.toFixed(1) + 'x'
+      document.getElementById('ap-ev-ebitda').value = ks.enterpriseToEbitda.raw.toFixed(1)
     if (ks?.forwardEps?.raw != null)
-      document.getElementById('ap-feps').textContent = ks.forwardEps.raw.toFixed(2)
+      document.getElementById('ap-feps').value = ks.forwardEps.raw.toFixed(2)
     if (ks?.heldPercentInstitutions?.raw != null)
-      document.getElementById('ap-inst').textContent = (ks.heldPercentInstitutions.raw * 100).toFixed(1) + '%'
+      document.getElementById('ap-inst').value = (ks.heldPercentInstitutions.raw * 100).toFixed(1)
     const cashRaw = fd?.totalCash?.raw || 0
     const debtRaw = fd?.totalDebt?.raw || 0
     if (cashRaw || debtRaw) {
@@ -635,9 +732,9 @@ async function autoFetch() {
     // Rf、Rm、信用利差 — 市場參數
     if (marketParams) {
       if (marketParams.rf != null && isFinite(marketParams.rf)) {
-        if (setSlider('sl-rf', marketParams.rf, 'lbl-rf', '%', 1)) {
+        if (setSlider('sl-rf', marketParams.rf, 'lbl-rf', '%', 2)) {
           const rfTop = document.getElementById('inp-rf-top')
-          if (rfTop) rfTop.value = parseFloat(document.getElementById('sl-rf').value).toFixed(1)
+          if (rfTop) rfTop.value = parseFloat(document.getElementById('sl-rf').value).toFixed(2)
           filled.push('Rf')
         }
       }
