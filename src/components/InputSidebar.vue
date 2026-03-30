@@ -167,8 +167,14 @@ const fcfOverride       = inject('fcfOverride')
       <input type="range" id="sl-rm" min="5" max="15" step="0.5" value="9" @input="e => sync('rm', e.target.value, '%', 1)">
     </div>
     <div class="ctrl">
-      <div class="ctrl-row"><span class="ctrl-name">Beta <span class="ctrl-abbr">β — 系統性風險</span></span><span class="ctrl-val" id="lbl-beta">1.2</span></div>
+      <div class="ctrl-row">
+        <span class="ctrl-name">Beta <span class="ctrl-abbr beta-abbr">β — 系統性風險</span></span>
+        <span class="ctrl-val" id="lbl-beta">1.2</span>
+      </div>
       <input type="range" id="sl-beta" min="0.3" max="3" step="0.1" value="1.2" @input="e => sync('beta', e.target.value, '', 1)">
+      <div class="beta-warn">
+        Beta 直接影響 WACC 與估值。Yahoo Finance 自動帶入值使用 5 年月報酬率回歸，可能因基準指數或計算期間不同而偏低或偏高。建議對照 Bloomberg / 券商報告確認後手動調整。
+      </div>
     </div>
     <div class="ctrl">
       <div class="ctrl-row"><span class="ctrl-name">負債比 <span class="ctrl-abbr">D/V = Debt/(Debt+Equity)</span></span><span class="ctrl-val" id="lbl-dv">40%</span></div>
@@ -229,5 +235,18 @@ const fcfOverride       = inject('fcfOverride')
 }
 .fcb-warn-val {
   color: var(--amber);
+}
+.beta-abbr {
+  color: var(--amber);
+}
+.beta-warn {
+  font-size: 9.5px;
+  color: var(--amber);
+  line-height: 1.4;
+  padding: 4px 6px;
+  margin-top: 3px;
+  background: rgba(255, 180, 0, 0.07);
+  border-left: 2px solid var(--amber);
+  border-radius: 2px;
 }
 </style>
