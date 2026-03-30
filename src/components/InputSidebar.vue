@@ -1,10 +1,11 @@
 <script setup>
 import { inject } from 'vue'
-const recalc           = inject('recalc')
-const sync             = inject('sync')
-const fcfModeChange    = inject('fcfModeChange')
+const recalc            = inject('recalc')
+const sync              = inject('sync')
+const fcfModeChange     = inject('fcfModeChange')
 const fcfFromComponents = inject('fcfFromComponents')
-const autoFetch        = inject('autoFetch')
+const autoFetch         = inject('autoFetch')
+const fcfOverride       = inject('fcfOverride')
 </script>
 
 <template>
@@ -76,7 +77,19 @@ const autoFetch        = inject('autoFetch')
         <div class="fcb-row"><span class="fcb-label">OCF</span><span class="fcb-val" id="fcb-ocf">400億</span></div>
         <div class="fcb-row"><span class="fcb-label">− CapEx</span><span class="fcb-val bad" id="fcb-capex">−100億</span></div>
         <div class="fcb-divider"></div>
-        <div class="fcb-row"><span class="fcb-label">= FCF (TTM)</span><span class="fcb-val good" id="fcb-fcf">300億</span></div>
+        <div class="fcb-row fcb-row--fcf">
+          <span class="fcb-label">= FCF (計算值)</span>
+          <span class="fcb-val good" id="fcb-fcf">—</span>
+        </div>
+        <div class="fcb-row fcb-row--override">
+          <span class="fcb-label fcb-override-lbl">手動覆蓋（億）</span>
+          <input type="number" class="fcb-fcf-input" id="fcb-fcf-input" step="0.1" placeholder="留空=計算值" @input="fcfOverride">
+        </div>
+        <div class="fcb-row" style="display:none" id="fcb-api-diff-row">
+          <span class="fcb-label fcb-warn-lbl">API FCF</span>
+          <span class="fcb-val fcb-warn-val" id="fcb-api-fcf-val"></span>
+        </div>
+        <div class="fcb-warn" id="fcb-fcf-warn" style="display:none"></div>
         <div class="fcb-row"><span class="fcb-label">FCF Margin</span><span class="fcb-val" id="fcb-margin">10.0%</span></div>
         <div class="fcb-divider" style="margin-top:6px"></div>
         <div class="fcb-row" style="color:var(--muted);font-size:10px;margin-top:4px"><span class="fcb-label">OCF</span><span class="fcb-val" id="fcb-maint-ocf">—</span></div>
@@ -173,3 +186,48 @@ const autoFetch        = inject('autoFetch')
 
   </div>
 </template>
+
+<style scoped>
+.fcb-row--fcf {
+  align-items: center;
+  gap: 4px;
+}
+.fcb-fcf-input {
+  width: 70px;
+  background: var(--s2);
+  border: 1px solid var(--border2);
+  border-radius: 3px;
+  color: var(--teal);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  padding: 2px 4px;
+  text-align: right;
+}
+.fcb-fcf-input:focus {
+  outline: none;
+  border-color: var(--teal);
+}
+.fcb-override-lbl {
+  color: var(--muted);
+  font-style: italic;
+}
+.fcb-row--override {
+  margin-top: 2px;
+}
+.fcb-warn {
+  font-size: 9.5px;
+  color: var(--amber);
+  line-height: 1.4;
+  padding: 4px 6px;
+  margin-top: 2px;
+  background: rgba(255, 180, 0, 0.07);
+  border-left: 2px solid var(--amber);
+  border-radius: 2px;
+}
+.fcb-warn-lbl {
+  color: var(--amber);
+}
+.fcb-warn-val {
+  color: var(--amber);
+}
+</style>

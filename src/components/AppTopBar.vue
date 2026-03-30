@@ -1,6 +1,7 @@
 <script setup>
 import { inject } from 'vue'
-const syncRfTop = inject('syncRfTop')
+const syncRfTop    = inject('syncRfTop')
+const copyAnalysis = inject('copyAnalysis')
 </script>
 
 <template>
@@ -15,6 +16,27 @@ const syncRfTop = inject('syncRfTop')
       <span class="rf-hint">10Y公債｜每日更新｜決定所有資產走向</span>
     </div>
     <div style="flex:1"></div>
+    <button id="btn-copy-analysis" class="copy-btn" @click="copyAnalysis">複製分析報告</button>
     <div id="phase-pill" class="tag-pill" style="background:rgba(224,92,92,0.15);color:var(--red)">滯脹期</div>
   </div>
 </template>
+
+<style scoped>
+.copy-btn {
+  padding: 4px 12px;
+  font-size: 11px;
+  font-family: 'DM Mono', monospace;
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--muted2);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: 0.3px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.copy-btn:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+</style>

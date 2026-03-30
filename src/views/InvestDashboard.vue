@@ -67,16 +67,58 @@ function fcfModeChange() {
 function fcfFromComponents() {
   const ocf   = n('inp-ocf')   * sv('sel-ocf-u')
   const capex = n('inp-capex') * sv('sel-capex-u')
-  const fcf   = ocf - capex
-  document.getElementById('inp-fcf').value = (fcf / 1e8).toFixed(1)
+  const calcFcf = ocf - capex
+  // 若使用者有手動覆蓋，以覆蓋值為準；否則用計算值
+  const overrideInput = document.getElementById('fcb-fcf-input')
+  const overrideRaw   = overrideInput ? parseFloat(overrideInput.value) : NaN
+  const fcf = isFinite(overrideRaw) ? overrideRaw * 1e8 : calcFcf
+  document.getElementById('inp-fcf').value = (fcf / 1e8).toFixed(2)
   document.getElementById('sel-fcf-u').value = '1e8'
-  document.getElementById('fcb-ocf').textContent   = fmtB(ocf)
-  document.getElementById('fcb-capex').textContent = '-' + fmtB(capex)
-  document.getElementById('fcb-fcf').textContent   = fmtB(fcf)
+  document.getElementById('fcb-ocf').textContent    = fmtB(ocf)
+  document.getElementById('fcb-capex').textContent  = '-' + fmtB(capex)
+  document.getElementById('fcb-fcf').textContent    = fmtB(calcFcf)
   const rev = n('inp-rev') * sv('sel-rev-u')
   document.getElementById('fcb-margin').textContent = rev > 0 ? (fcf / rev * 100).toFixed(1) + '%' : '-'
+  checkFcfApiDiff(calcFcf)
   updateMaintFcfDisplay(ocf)
   recalc()
+}
+
+function fcfOverride() {
+  const overrideInput = document.getElementById('fcb-fcf-input')
+  const overrideRaw   = parseFloat(overrideInput.value)
+  const ocf   = n('inp-ocf')   * sv('sel-ocf-u')
+  const capex = n('inp-capex') * sv('sel-capex-u')
+  const calcFcf = ocf - capex
+  const fcf = isFinite(overrideRaw) ? overrideRaw * 1e8 : calcFcf
+  document.getElementById('inp-fcf').value = (fcf / 1e8).toFixed(2)
+  document.getElementById('sel-fcf-u').value = '1e8'
+  const rev = n('inp-rev') * sv('sel-rev-u')
+  document.getElementById('fcb-margin').textContent = rev > 0 ? (fcf / rev * 100).toFixed(1) + '%' : '-'
+  checkFcfApiDiff(calcFcf)
+  recalc()
+}
+
+function checkFcfApiDiff(calcFcf) {
+  const apiFcfRaw = parseFloat(document.getElementById('fcb-fcf-input').dataset.apiFcf)
+  const warnEl  = document.getElementById('fcb-fcf-warn')
+  const diffRow = document.getElementById('fcb-api-diff-row')
+  const apiVal  = document.getElementById('fcb-api-fcf-val')
+  if (!warnEl || !isFinite(apiFcfRaw)) {
+    if (warnEl) warnEl.style.display = 'none'
+    if (diffRow) diffRow.style.display = 'none'
+    return
+  }
+  const diff = Math.abs(calcFcf - apiFcfRaw) / Math.abs(apiFcfRaw)
+  if (apiVal) apiVal.textContent = fmtB(apiFcfRaw)
+  if (diff > 0.05) {
+    diffRow.style.display = ''
+    warnEl.style.display  = ''
+    warnEl.textContent    = `計算值與 API 差異 ${(diff * 100).toFixed(0)}%：Yahoo Finance FCF 定義可能與 OCF - CapEx 不同（如含收購支出），請確認後手動調整`
+  } else {
+    diffRow.style.display = 'none'
+    warnEl.style.display  = 'none'
+  }
 }
 
 function updateMaintFcfDisplay(ocf) {
@@ -125,9 +167,10 @@ function recalc() {
   // FCF breakdown
   const ocf   = n('inp-ocf')   * sv('sel-ocf-u')
   const capex = n('inp-capex') * sv('sel-capex-u')
+  const calcFcf = ocf - capex
   document.getElementById('fcb-ocf').textContent    = fmtB(ocf)
   document.getElementById('fcb-capex').textContent  = '-' + fmtB(capex)
-  document.getElementById('fcb-fcf').textContent    = fmtB(fcf0)
+  document.getElementById('fcb-fcf').textContent    = fmtB(calcFcf)
   document.getElementById('fcb-margin').textContent = rev > 0 ? (fcf0 / rev * 100).toFixed(1) + '%' : '-'
   updateMaintFcfDisplay(ocf)
 
@@ -510,6 +553,12 @@ function clearPreviousData() {
       el.dataset.raw = ''
     }
   }
+  const fcfInputEl = document.getElementById('fcb-fcf-input')
+  if (fcfInputEl) { delete fcfInputEl.dataset.apiFcf }
+  const fcbWarn = document.getElementById('fcb-fcf-warn')
+  if (fcbWarn) fcbWarn.style.display = 'none'
+  const fcbDiffRow = document.getElementById('fcb-api-diff-row')
+  if (fcbDiffRow) fcbDiffRow.style.display = 'none'
   const wccWarnEl = document.getElementById('wcc-warning')
   if (wccWarnEl) wccWarnEl.style.display = 'none'
   const peIvEl = document.getElementById('ev-pe-iv')
@@ -582,10 +631,12 @@ async function autoFetch() {
     }
     if (fd?.freeCashflow?.raw) {
       const fcf = fd.freeCashflow.raw
-      document.getElementById('inp-fcf').value = (fcf / 1e8).toFixed(0)
-      document.getElementById('sel-fcf-u').value = '1e8'
+      // 只存入 ap-fcf 顯示欄位，不寫入 inp-fcf（由 fcfFromComponents 計算後覆蓋）
       document.getElementById('ap-fcf').textContent = fmtB(fcf)
-      filled.push('FCF')
+      // 儲存 API FCF 供差異比對
+      const fcfInputEl = document.getElementById('fcb-fcf-input')
+      if (fcfInputEl) fcfInputEl.dataset.apiFcf = fcf
+      filled.push('FCF(API)')
     }
     if (fd?.totalCash?.raw) {
       document.getElementById('inp-cash').value = (fd.totalCash.raw / 1e8).toFixed(0)
@@ -785,7 +836,7 @@ async function autoFetch() {
     }
 
     showStatus('ok', `已帶入：${filled.join('、')}（數據來源：Yahoo Finance TTM）`)
-    recalc()
+    fcfFromComponents()
   } catch (e) {
     showStatus('err', '解析資料失敗，請手動填入')
   }
@@ -798,6 +849,172 @@ function showStatus(type, msg) {
   if (type === 'ok') setTimeout(() => { el.className = 'fetch-status' }, 5000)
 }
 
+function copyAnalysis() {
+  const name    = document.getElementById('inp-name').value || document.getElementById('inp-ticker').value || '未知公司'
+  const ticker  = document.getElementById('inp-ticker').value || '-'
+  const price   = n('inp-price')
+  const priceCur = document.getElementById('sel-price-cur').value
+  const shares  = n('inp-shares') * sv('sel-shares-u')
+  const rev     = n('inp-rev')    * sv('sel-rev-u')
+  const fcf0    = n('inp-fcf')    * sv('sel-fcf-u')
+  const ocf     = n('inp-ocf')    * sv('sel-ocf-u')
+  const capex   = n('inp-capex')  * sv('sel-capex-u')
+  const cash    = n('inp-cash')   * sv('sel-cash-u')
+  const debt    = n('inp-debt')   * sv('sel-debt-u')
+
+  const rf      = n('sl-rf')
+  const beta    = n('sl-beta')
+  const dvPct   = n('sl-dv')
+  const spread  = n('sl-spread')
+  const tc      = n('sl-tc')
+  const rm      = n('sl-rm')
+  const g1      = n('sl-g1')
+  const g2      = n('sl-g2')
+  const gp      = n('sl-gp')
+  const marginPct = n('sl-margin')
+  const fcfMode = document.getElementById('sel-fcf-mode').value
+
+  const instVal = parseFloat(document.getElementById('ap-inst')?.value) || 0
+  let adjustedMarginPct = marginPct
+  if (instVal > 0) {
+    if (instVal > 70) adjustedMarginPct = Math.max(marginPct - 5, 15)
+    else if (instVal < 30) adjustedMarginPct = marginPct + 5
+  }
+
+  const { re, rdA, wacc } = calcWACC(rf, beta, dvPct, spread, tc, rm)
+
+  let effectiveFcf = fcf0
+  if (fcfMode === 'norm') {
+    const normPct = n('sl-fcfnorm')
+    effectiveFcf = rev * normPct / 100
+  }
+
+  const res = effectiveFcf > 0 ? runDCF(effectiveFcf, g1, g2, gp, wacc) : null
+
+  const iv     = res ? (res.total + cash - debt) / shares : null
+  const target = iv != null ? iv * (1 - adjustedMarginPct / 100) : null
+  const upside = iv != null ? (iv - price) / price * 100 : null
+  const uTarget = target != null ? (target - price) / price * 100 : null
+
+  const feps    = parseFloat(document.getElementById('ap-feps')?.value) || 0
+  const depr    = parseFloat(document.getElementById('ap-depr')?.value) * 1e8 || 0
+  const evEbitda = parseFloat(document.getElementById('ap-ev-ebitda')?.value) || 0
+  const netIncome = parseFloat(document.getElementById('ap-netincome')?.dataset?.raw) || 0
+  const interest  = (parseFloat(document.getElementById('ap-interest')?.value) || 0) * 1e8
+
+  const today = new Date().toISOString().slice(0, 10)
+
+  const lines = [
+    `DCF 投資分析報告 — ${name}（${ticker}）`,
+    `分析日期：${today}`,
+    '',
+    '=== 公司基本資料 ===',
+    `公司名稱：${name}`,
+    `股票代碼：${ticker}`,
+    `當前股價：${price.toFixed(2)} ${priceCur}`,
+    `流通股數：${fmtB(shares)} 股`,
+    '',
+    '=== 財務輸入參數 ===',
+    `年營收（Revenue）：${fmtB(rev)}`,
+    `營業現金流（OCF）：${fmtB(ocf)}`,
+    `資本支出（CapEx）：${fmtB(capex)}`,
+    `自由現金流（FCF）：${fmtB(fcf0)}${fcfMode === 'norm' ? `（正常化 FCF 實際用於計算：${fmtB(effectiveFcf)}）` : ''}`,
+    `現金及約當現金：${fmtB(cash)}`,
+    `總負債：${fmtB(debt)}`,
+    `淨現金部位：${(cash - debt) >= 0 ? '+' : ''}${fmtB(cash - debt)}`,
+    ...(depr > 0 ? [`折舊攤銷（D&A）：${fmtB(depr)}`] : []),
+    ...(instVal > 0 ? [`機構持股比例：${instVal.toFixed(1)}%`] : []),
+    ...(netIncome > 0 ? [`淨利（Net Income）：${fmtB(netIncome)}`] : []),
+    ...(interest > 0 ? [`利息費用：${fmtB(interest)}`] : []),
+    '',
+    '=== WACC 資金成本參數 ===',
+    `無風險利率（Rf）：${rf.toFixed(2)}%`,
+    `市場報酬率（Rm）：${rm.toFixed(1)}%`,
+    `Beta（系統風險）：${beta.toFixed(2)}`,
+    `股權成本（Re = CAPM）：${(re * 100).toFixed(2)}%`,
+    `負債比例（D/V）：${dvPct.toFixed(2)}%`,
+    `信用利差（Spread）：${spread.toFixed(1)}%`,
+    `企業稅率（Tc）：${tc.toFixed(0)}%`,
+    `稅後債務成本（Rd after-tax）：${(rdA * 100).toFixed(2)}%`,
+    `WACC：${(wacc * 100).toFixed(2)}%`,
+    '',
+    '=== DCF 成長率假設 ===',
+    `第 1-5 年成長率（g1）：${g1.toFixed(0)}%`,
+    `第 6-10 年成長率（g2）：${g2.toFixed(0)}%`,
+    `永續成長率（g∞ / Terminal）：${gp.toFixed(1)}%`,
+    `安全邊際（MOS）：${marginPct.toFixed(0)}%${instVal > 0 && adjustedMarginPct !== marginPct ? `（機構調整後：${adjustedMarginPct.toFixed(0)}%）` : ''}`,
+    '',
+    '=== DCF 估值結果 ===',
+  ]
+
+  if (res) {
+    lines.push(
+      `PV（第 1-5 年 FCF）：${fmtB(res.pv5)}`,
+      `PV（第 6-10 年 FCF）：${fmtB(res.pv10)}`,
+      `終值現值（Terminal Value PV）：${fmtB(res.tvPV)}（佔 EV ${res.total > 0 ? (res.tvPV / res.total * 100).toFixed(1) : '—'}%）`,
+      `企業價值（EV）：${fmtB(res.total)}`,
+      `+ 現金：${fmtB(cash)}`,
+      `- 負債：${fmtB(debt)}`,
+      `股權公平價值（Equity Value）：${fmtB(res.total + cash - debt)}`,
+      `每股內在價值（Intrinsic Value）：${iv.toFixed(2)} ${priceCur}`,
+      `目標買入價（含 ${adjustedMarginPct.toFixed(0)}% MOS）：${target.toFixed(2)} ${priceCur}`,
+      `相對當前股價潛在空間（IV）：${(upside >= 0 ? '+' : '') + upside.toFixed(1)}%`,
+      `相對當前股價潛在空間（目標價）：${(uTarget >= 0 ? '+' : '') + uTarget.toFixed(1)}%`,
+    )
+  } else {
+    lines.push(`估值結果：FCF <= 0 或模型失效，DCF 不適用`)
+  }
+
+  if (feps > 0) {
+    const peIV = feps * 20
+    const peDiff = iv != null ? Math.abs(peIV - iv) / iv * 100 : null
+    lines.push('')
+    lines.push('=== 相對估值交叉驗證 ===')
+    lines.push(`P/E 估值（Forward EPS ${feps.toFixed(2)} ${priceCur} × 20x）：${peIV.toFixed(2)} ${priceCur}`)
+    if (peDiff != null) lines.push(`P/E 與 DCF 差異：${peDiff.toFixed(0)}%${peDiff > 50 ? '（差異偏大，請確認成長假設）' : '（收斂）'}`)
+  }
+
+  if (evEbitda > 0 && netIncome > 0) {
+    const ebitdaApprox = netIncome + interest + depr
+    if (ebitdaApprox > 0) {
+      const impliedEV     = evEbitda * ebitdaApprox
+      const impliedEquity = impliedEV + cash - debt
+      const impliedIV     = impliedEquity / shares
+      lines.push(`EV/EBITDA 估值（${evEbitda.toFixed(1)}x × EBITDA≈${fmtB(ebitdaApprox)}）：${impliedIV.toFixed(2)} ${priceCur}`)
+    }
+  }
+
+  const actionEl = document.getElementById('action-val')
+  if (actionEl && actionEl.textContent && actionEl.textContent !== '—') {
+    lines.push('')
+    lines.push('=== 操作建議 ===')
+    lines.push(actionEl.textContent)
+  }
+
+  const text = lines.join('\n')
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('btn-copy-analysis')
+    if (btn) {
+      const orig = btn.textContent
+      btn.textContent = '已複製'
+      setTimeout(() => { btn.textContent = orig }, 2000)
+    }
+  }).catch(() => {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
+    const btn = document.getElementById('btn-copy-analysis')
+    if (btn) {
+      const orig = btn.textContent
+      btn.textContent = '已複製'
+      setTimeout(() => { btn.textContent = orig }, 2000)
+    }
+  })
+}
+
 // ── provide ──
 provide('recalc',            recalc)
 provide('sync',              sync)
@@ -807,6 +1024,8 @@ provide('fcfFromComponents', fcfFromComponents)
 provide('autoFetch',         autoFetch)
 provide('switchPhase',       switchPhase)
 provide('switchScenario',    switchScenario)
+provide('copyAnalysis',      copyAnalysis)
+provide('fcfOverride',       fcfOverride)
 
 onMounted(() => {
   switchPhase('stagflation')
